@@ -1,17 +1,22 @@
 {
-  "name": "my-api-project", 
-  "version": "1.0.0", 
-  "description": "API для авторизации и регистрации пользователей", 
+  "name": "my-api-project",
+  "version": "1.0.0",
+  "description": "API для авторизации и регистрации пользователей",
   "main": "example.js",
   "scripts": {
-    "start": "node example.js" 
+    "start": "node example.js"
   },
-  "keywords": ["api", "authorization", "registration"],  
-  "author": "Your Name",  
-  "license": "ISC",  
+  "keywords": [
+    "api",
+    "authorization",
+    "registration"
+  ],
+  "author": "Your Name",
+  "license": "ISC",
   "dependencies": {
-    "express": "^4.17.1",
-    "body-parser": "^1.19.0",
-    "jsonwebtoken": "^8.5.1"
+    "body-parser": "^1.20.3",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^8.5.1",
+    "mysql2": "^3.12.0"
   }
 }
