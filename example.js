@@ -244,7 +244,7 @@ app.post('/services', authenticateToken, async (req, res) => {
   if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ message: 'Доступ запрещён' });
   }
-  const { name, price, photo, description } = req.body;
+  const { name, price, photo, description, duration } = req.body;
 
   if (!name || !price) {
     return res.status(400).json({ message: 'Название и цена обязательны' });
@@ -253,8 +253,8 @@ app.post('/services', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'INSERT INTO services (name, price, photo, description) VALUES (?, ?, ?, ?)',
-      [name, price, photo || null, description || null]
+      'INSERT INTO services (name, price, photo, description, duration) VALUES (?, ?, ?, ?, ?)',
+      [name, price, photo || null, description || null, duration || null]
     );
     await connection.end();
 
@@ -270,7 +270,7 @@ app.put('/services/:id', authenticateToken, async (req, res) => {
     return res.status(403).json({ message: 'Доступ запрещён' });
   }
   const { id } = req.params;
-  const { name, price, photo, description } = req.body;
+  const { name, price, photo, description, duration } = req.body;
 
   if (!name || !price) {
     return res.status(400).json({ message: 'Название и цена обязательны' });
@@ -279,8 +279,8 @@ app.put('/services/:id', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'UPDATE services SET name = ?, price = ?, photo = ?, description = ? WHERE id = ?',
-      [name, price, photo || null, description || null, id]
+      'UPDATE services SET name = ?, price = ?, photo = ?, description = ?, duration = ? WHERE id = ?',
+      [name, price, photo || null, description || null, duration || null, id]
     );
     await connection.end();
 
@@ -354,7 +354,7 @@ app.post('/masters', authenticateToken, async (req, res) => {
     return res.status(403).json({ message: 'Доступ запрещён' });
   }
 
-  const { login, password, first_name, last_name, rate_of_salary, work_experience, brief_information, services } = req.body;
+  const { login, password, first_name, last_name, rate_of_salary, work_experience, brief_information, working_hours } = req.body;
 
   if (!login || !password || !first_name || !last_name) {
     return res.status(400).json({ message: 'Логин, пароль, имя и фамилия обязательны' });
@@ -363,26 +363,23 @@ app.post('/masters', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Создать мастера в таблице `users`
     const [userResult] = await connection.execute(
       'INSERT INTO users (login, password, role) VALUES (?, ?, ?)',
       [login, password, 'MASTER']
     );
 
-    // Создать детали мастера в таблице `master_details`
     const [masterResult] = await connection.execute(
-      'INSERT INTO master_details (user_id, first_name, last_name, rate_of_salary, work_experience, brief_information) VALUES (?, ?, ?, ?, ?, ?)',
-      [userResult.insertId, first_name, last_name, rate_of_salary || 0, work_experience || 0, brief_information || null]
+      'INSERT INTO master_details (user_id, first_name, last_name, rate_of_salary, work_experience, brief_information, working_hours) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        userResult.insertId,
+        first_name,
+        last_name,
+        rate_of_salary || 0,
+        work_experience || 0,
+        brief_information || null,
+        working_hours || '09:00-18:00'
+      ]
     );
-
-    // Добавить услуги в `master_services`, если указаны
-    if (services && Array.isArray(services)) {
-      const serviceValues = services.map(serviceId => [userResult.insertId, serviceId]);
-      await connection.query(
-        'INSERT INTO master_services (master_id, service_id) VALUES ?',
-        [serviceValues]
-      );
-    }
 
     await connection.end();
 
@@ -620,6 +617,324 @@ app.delete('/masters/:id/services/:service_id', authenticateToken, async (req, r
   }
 });
 
+
+app.post('/schedule', authenticateToken, async (req, res) => {
+  const { service_id, client_id, master_id, start_time, end_time, description } = req.body;
+
+  if (!service_id || !client_id || !master_id || !start_time || !end_time) {
+    return res.status(400).json({ message: 'Все поля, кроме описания, обязательны' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [result] = await connection.execute(
+      'INSERT INTO schedule (service_id, client_id, master_id, start_time, end_time, description) VALUES (?, ?, ?, ?, ?, ?)',
+      [service_id, client_id, master_id, start_time, end_time, description || null]
+    );
+
+    await connection.end();
+
+    res.status(201).json({ message: 'Запись добавлена в расписание', schedule_id: result.insertId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.get('/schedule', authenticateToken, async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+      'sv.name AS service_name, u_client.login AS client_name, u_master.login AS master_name ' +
+      'FROM schedule s ' +
+      'JOIN services sv ON s.service_id = sv.id ' +
+      'JOIN users u_client ON s.client_id = u_client.id ' +
+      'JOIN users u_master ON s.master_id = u_master.id'
+    );
+
+    await connection.end();
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.get('/schedule/master/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+      'sv.name AS service_name, u_client.login AS client_name ' +
+      'FROM schedule s ' +
+      'JOIN services sv ON s.service_id = sv.id ' +
+      'JOIN users u_client ON s.client_id = u_client.id ' +
+      'WHERE s.master_id = ?',
+      [id]
+    );
+
+    await connection.end();
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.put('/schedule/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { service_id, client_id, master_id, start_time, end_time, description } = req.body;
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [result] = await connection.execute(
+      'UPDATE schedule SET service_id = ?, client_id = ?, master_id = ?, start_time = ?, end_time = ?, description = ? WHERE id = ?',
+      [service_id, client_id, master_id, start_time, end_time, description || null, id]
+    );
+
+    await connection.end();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Запись в расписании не найдена' });
+    }
+
+    res.status(200).json({ message: 'Запись в расписании обновлена' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/schedule/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [result] = await connection.execute(
+      'DELETE FROM schedule WHERE id = ?',
+      [id]
+    );
+
+    await connection.end();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Запись в расписании не найдена' });
+    }
+
+    res.status(200).json({ message: 'Запись в расписании удалена' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.get('/schedule/client/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+      'sv.name AS service_name, u_master.login AS master_name ' +
+      'FROM schedule s ' +
+      'JOIN services sv ON s.service_id = sv.id ' +
+      'JOIN users u_master ON s.master_id = u_master.id ' +
+      'WHERE s.client_id = ?',
+      [id]
+    );
+
+    await connection.end();
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.get('/schedule/service/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [rows] = await connection.execute(
+      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+      'u_client.login AS client_name, u_master.login AS master_name ' +
+      'FROM schedule s ' +
+      'JOIN users u_client ON s.client_id = u_client.id ' +
+      'JOIN users u_master ON s.master_id = u_master.id ' +
+      'WHERE s.service_id = ?',
+      [id]
+    );
+
+    await connection.end();
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.get('/availability/service/:service_id', authenticateToken, async (req, res) => {
+  const { service_id } = req.params;
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    // Получить мастеров, оказывающих заданную услугу
+    const [masters] = await connection.execute(
+      'SELECT DISTINCT u.id AS master_id, u.login AS master_name ' +
+      'FROM master_services ms ' +
+      'JOIN users u ON ms.master_id = u.id ' +
+      'WHERE ms.service_id = ? AND u.role = "MASTER"',
+      [service_id]
+    );
+
+    if (masters.length === 0) {
+      await connection.end();
+      return res.status(404).json({ message: 'Мастера с этой услугой не найдены' });
+    }
+
+    // Получить расписание для каждого мастера
+    const masterIds = masters.map(master => master.master_id).join(',');
+    const [schedule] = await connection.execute(
+      `SELECT s.master_id, s.start_time, s.end_time, s.description ` +
+      `FROM schedule s ` +
+      `WHERE s.master_id IN (${masterIds})`
+    );
+
+    await connection.end();
+
+    // Добавить расписание к мастерам
+    const mastersWithSchedule = masters.map(master => {
+      const masterSchedule = schedule.filter(s => s.master_id === master.master_id);
+      return {
+        ...master,
+        schedule: masterSchedule
+      };
+    });
+
+    res.status(200).json(mastersWithSchedule);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.get('/salon/settings', async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [settings] = await connection.execute('SELECT * FROM salon_settings LIMIT 1');
+
+    await connection.end();
+
+    if (settings.length === 0) {
+      return res.status(404).json({ message: 'Настройки салона не найдены' });
+    }
+
+    res.status(200).json(settings[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.post('/salon/settings', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Доступ запрещён' });
+  }
+
+  const { phone, email, open_time, close_time } = req.body;
+
+  if (!phone || !email || !open_time || !close_time) {
+    return res.status(400).json({ message: 'Все поля обязательны' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    await connection.execute(
+      'INSERT INTO salon_settings (phone, email, open_time, close_time) VALUES (?, ?, ?, ?)',
+      [phone, email, open_time, close_time]
+    );
+
+    await connection.end();
+
+    res.status(201).json({ message: 'Настройки салона созданы' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/salon/settings', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Доступ запрещён' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [result] = await connection.execute('DELETE FROM salon_settings WHERE id = 1');
+
+    await connection.end();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Настройки салона не найдены' });
+    }
+
+    res.status(200).json({ message: 'Настройки салона удалены' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+app.put('/salon/settings', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Доступ запрещён' });
+  }
+
+  const { phone, email, open_time, close_time } = req.body;
+
+  if (!phone || !email || !open_time || !close_time) {
+    return res.status(400).json({ message: 'Все поля обязательны' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const [result] = await connection.execute(
+      'UPDATE salon_settings SET phone = ?, email = ?, open_time = ?, close_time = ? WHERE id = 1',
+      [phone, email, open_time, close_time]
+    );
+
+    await connection.end();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Настройки салона не найдены' });
+    }
+
+    res.status(200).json({ message: 'Настройки салона обновлены' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
 
 
 
