@@ -2,12 +2,14 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql2/promise');
-
+const cors = require('cors');
 const app = express();
 const port = 3000;
 
 // Middleware для парсинга JSON тела запросов
 app.use(bodyParser.json());
+
+app.use(cors());
 
 // Секретный ключ для генерации токенов
 const secretKey = 'yourSecretKey';
