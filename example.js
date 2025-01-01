@@ -790,13 +790,14 @@ app.get('/schedule/service/:id', authenticateToken, async (req, res) => {
 
 app.get('/availability/service/:service_id', authenticateToken, async (req, res) => {
   const { service_id } = req.params;
+  const { range, start } = req.query;
 
   try {
     const connection = await mysql.createConnection(dbConfig);
 
     // Получить мастеров, оказывающих заданную услугу
     const [masters] = await connection.execute(
-      'SELECT DISTINCT u.id AS master_id, u.login AS master_name ' +
+      'SELECT u.id AS master_id, u.login AS master_name ' +
       'FROM master_services ms ' +
       'JOIN users u ON ms.master_id = u.id ' +
       'WHERE ms.service_id = ? AND u.role = "MASTER"',
@@ -808,31 +809,194 @@ app.get('/availability/service/:service_id', authenticateToken, async (req, res)
       return res.status(404).json({ message: 'Мастера с этой услугой не найдены' });
     }
 
-    // Получить расписание для каждого мастера
-    const masterIds = masters.map(master => master.master_id).join(',');
+    let dateFilter = '';
+    let startDate = new Date(start);
+    let endDate = new Date(start);
+
+    switch (range) {
+      case 'day':
+        // Фильтруем по конкретному дню
+        dateFilter = `AND s.start_time >= '${startDate.toISOString().split('T')[0]}T00:00:00' 
+                      AND s.end_time <= '${startDate.toISOString().split('T')[0]}T23:59:59'`;
+        break;
+
+      case 'week':
+        // Определяем понедельник текущей недели
+        const startOfWeek = new Date(startDate);
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Понедельник
+        startDate = startOfWeek;
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6); // Воскресенье
+        endDate = endOfWeek;
+        dateFilter = `AND s.start_time >= '${startOfWeek.toISOString().split('T')[0]}T00:00:00' 
+                      AND s.end_time <= '${endOfWeek.toISOString().split('T')[0]}T23:59:59'`;
+        break;
+
+      case 'month':
+        // Получаем первый и последний день месяца
+        const startOfMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        const endOfMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+
+        startDate = startOfMonth;
+        endDate = endOfMonth;
+
+        dateFilter = `AND s.start_time >= '${startOfMonth.toISOString().split('T')[0]}T00:00:00' 
+                      AND s.end_time <= '${endOfMonth.toISOString().split('T')[0]}T23:59:59'`;
+        break;
+
+      default:
+        return res.status(400).json({ message: 'Invalid range parameter' });
+    }
+
+    // Получить расписание для данной услуги с учетом фильтрации по диапазону времени
     const [schedule] = await connection.execute(
-      `SELECT s.master_id, s.start_time, s.end_time, s.description ` +
-      `FROM schedule s ` +
-      `WHERE s.master_id IN (${masterIds})`
+      `SELECT s.master_id, s.start_time, s.end_time, s.description 
+       FROM schedule s
+       JOIN master_services ms ON s.master_id = ms.master_id
+       WHERE ms.service_id = ? ${dateFilter}`,
+      [service_id]
     );
 
     await connection.end();
 
-    // Добавить расписание к мастерам
-    const mastersWithSchedule = masters.map(master => {
-      const masterSchedule = schedule.filter(s => s.master_id === master.master_id);
-      return {
-        ...master,
-        schedule: masterSchedule
-      };
+    // 1. Чистое расписание
+    const scheduleDetails = schedule.map(slot => ({
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      description: slot.description
+    }));
+
+    // 2. Список мастеров
+    const masterDetails = masters.map(master => ({
+      master_id: master.master_id,
+      master_name: master.master_name
+    }));
+
+    // 3. Формируем слоты по датам и часам (значение - 0 мастеров пока)
+    const slots = {};
+
+    // Функция для создания слотов на заданный диапазон
+    const createSlotsForDateRange = (startDate, endDate) => {
+      const resultSlots = {};
+      let currentDate = new Date(startDate);
+
+      // Перебираем все дни в диапазоне
+      while (currentDate <= endDate) {
+        const dateKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+        resultSlots[dateKey] = {};
+
+        // Создаем часовые слоты с 9:00 до 21:00
+        for (let hour = 9; hour <= 21; hour++) {
+          const hourKey = `${String(hour).padStart(2, '0')}:00`;
+          resultSlots[dateKey][hourKey] = 0; // Пока мастеров 0
+        }
+
+        // Переходим к следующему дню
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      return resultSlots;
+    };
+
+    // Создаем слоты для запрашиваемого диапазона
+    const timeslots = createSlotsForDateRange(startDate, endDate);
+
+    // 4. Обновляем слоты, заполняем количество занятых мастеров
+    // Для каждого слота проверяем, сколько мастеров заняты на этом времени
+    schedule.forEach(slot => {
+      const dateKey = new Date(slot.start_time).toISOString().split('T')[0];
+      const hourKey = new Date(slot.start_time).getHours() + ":00";
+
+      if (timeslots[dateKey] && timeslots[dateKey][hourKey] !== undefined) {
+        timeslots[dateKey][hourKey] += 1; // Увеличиваем количество занятых мастеров для этого времени
+      }
     });
 
-    res.status(200).json(mastersWithSchedule);
+    res.status(200).json({
+      service_id,
+      schedule: scheduleDetails,
+      masters: masterDetails,
+      slots: timeslots
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
+
+app.get('/availability/slot/:service_id', authenticateToken, async (req, res) => {
+  const { service_id } = req.params;
+  let { date, hour } = req.query;
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    // Получить мастеров, оказывающих заданную услугу
+    const [masters] = await connection.execute(
+      'SELECT u.id AS master_id, u.login AS master_name ' +
+      'FROM master_services ms ' +
+      'JOIN users u ON ms.master_id = u.id ' +
+      'WHERE ms.service_id = ? AND u.role = "MASTER"',
+      [service_id]
+    );
+
+    if (masters.length === 0) {
+      await connection.end();
+      return res.status(404).json({ message: 'Мастера с этой услугой не найдены' });
+    }
+
+    // Убедимся, что hour в формате "09:00"
+    if (!hour.includes(':')) {
+      hour = `${String(hour).padStart(2, '0')}:00`;  // Если передан только час (например, "9"), добавляем ":00" и приводим к формату "09"
+    }
+
+    console.log(date);
+    console.log(hour);
+
+    // Проверяем корректность даты и часа
+    const startTime = new Date(`${date} ${hour}:00:00`);
+    console.log(startTime);
+    if (isNaN(startTime)) {
+      return res.status(400).json({ message: 'Неверный формат даты или времени' });
+    }
+
+    // Создаем время окончания (через 1 час)
+    const endTime = new Date(startTime);
+    endTime.setHours(startTime.getHours() + 1); // Интервал 1 час
+
+    // Получить расписание для мастеров на этот интервал времени
+    const [schedule] = await connection.execute(
+      `SELECT s.master_id, s.start_time, s.end_time 
+       FROM schedule s
+       WHERE s.start_time < ? AND s.end_time > ?`,
+      [endTime.toISOString(), startTime.toISOString()]
+    );
+
+    // Закрываем соединение
+    await connection.end();
+
+    // Мастера, которые заняты на этот слот
+    const unavailableMasters = new Set(schedule.map(s => s.master_id));
+
+    // Отбираем только доступных мастеров
+    const availableMasters = masters.filter(master => !unavailableMasters.has(master.master_id));
+
+    // Возвращаем список доступных мастеров
+    res.status(200).json({
+      service_id,
+      date,
+      hour,
+      available_masters: availableMasters
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+
+
+
 
 app.get('/salon/settings', async (req, res) => {
   try {
