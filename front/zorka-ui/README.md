@@ -1,4 +1,4 @@
-# my-vue-app
+# zorka-ui
 
 ## Project setup
 ```
