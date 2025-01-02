@@ -5,16 +5,19 @@ Vue.use(Vuex);
 
 export default new Vuex.Store({
     state: {
-        userRole: 'CLIENT', // Роль по умолчанию в верхнем регистре
+        userRole: 'CLIENT', // Роль по умолчанию
         token: '', // Токен по умолчанию
+        userId: '', // ID пользователя
     },
     mutations: {
         setUserRole(state, role) {
-            // Приводим роль в верхний регистр для унификации
-            state.userRole = role.toUpperCase();
+            state.userRole = role.toUpperCase(); // Приводим роль в верхний регистр
         },
         setToken(state, token) {
             state.token = token;
+        },
+        setUserId(state, userId) {
+            state.userId = userId;
         },
     },
     actions: {
@@ -24,9 +27,13 @@ export default new Vuex.Store({
         setToken({ commit }, token) {
             commit('setToken', token);
         },
+        setUserId({ commit }, userId) {
+            commit('setUserId', userId);
+        },
     },
     getters: {
         userRole: (state) => state.userRole,
         token: (state) => state.token,
+        userId: (state) => state.userId, // Добавляем геттер для userId
     },
 });

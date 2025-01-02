@@ -26,6 +26,7 @@
 
 <script>
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode'; // Импортируем библиотеку для декодирования JWT
 
 export default {
   data() {
@@ -54,14 +55,22 @@ export default {
       // Отправка POST-запроса на логин
       axios.post('http://localhost:3000/login', loginData)
           .then((response) => {
-            // Токен приходит в поле `token`, например, "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            // Токен приходит в ответе, например, "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             const token = response.data.token;
 
-            // Сохраняем токен в Vuex
-            this.$store.dispatch('setToken', token);
+            // Декодируем токен для извлечения данных
+            const decodedToken = jwtDecode(token);
 
-            // Мокаем роль для клиента (поменяйте на нужную роль, если будете делать реальную авторизацию)
-            this.$store.dispatch('setRole', 'client');
+            // Извлекаем роль и ID пользователя из декодированного токена
+            const role = decodedToken.role; // Предполагаем, что роль хранится в поле 'role'
+            const userId = decodedToken.id; // Предполагаем, что ID хранится в поле 'id'
+
+            // Сохраняем токен и роль в Vuex
+            this.$store.dispatch('setToken', token);
+            this.$store.dispatch('setRole', role.toUpperCase()); // Сохраняем роль в верхнем регистре
+
+            // Можете сохранить ID, если оно нужно:
+            this.$store.dispatch('setUserId', userId);
 
             // Редирект на профиль после логина
             this.$router.push('/profile');

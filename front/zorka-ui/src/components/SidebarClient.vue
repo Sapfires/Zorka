@@ -1,6 +1,6 @@
 ﻿<template>
-  <!-- Показываем Sidebar только если текущий маршрут соответствует одному из указанных -->
-  <v-navigation-drawer v-if="showSidebar" app>
+  <!-- Показываем Sidebar только если роль 'CLIENT' и текущий маршрут соответствует одному из указанных -->
+  <v-navigation-drawer app v-if="isClient">
     <v-list>
       <v-list-item @click="goToPage('/profile')">
         <v-list-item-content>
@@ -27,7 +27,11 @@
 export default {
   name: "SidebarClient",
   computed: {
-    // Проверяем текущий маршрут и решаем, показывать ли Sidebar
+    // Проверка роли из Vuex (показываем Sidebar только если роль 'CLIENT')
+    isClient() {
+      return this.$store.getters.userRole === 'CLIENT'; // Убедитесь, что роль 'CLIENT' в верхнем регистре
+    },
+    // Проверка текущего пути для отображения Sidebar только на нужных страницах
     showSidebar() {
       return ['/profile', '/history', '/book-service'].includes(this.$route.path);
     },

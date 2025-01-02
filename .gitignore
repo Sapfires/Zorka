@@ -128,3 +128,6 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+/front/.idea
+/front/zorka-ui/package-lock.json
+/package-lock.json
