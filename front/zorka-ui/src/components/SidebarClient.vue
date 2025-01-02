@@ -29,15 +29,20 @@ export default {
   computed: {
     // Проверка роли из Vuex (показываем Sidebar только если роль 'CLIENT')
     isClient() {
-      return this.$store.getters.userRole === 'CLIENT'; // Убедитесь, что роль 'CLIENT' в верхнем регистре
+      const role = this.$store.getters.userRole; // Получаем роль пользователя из Vuex
+      console.log("Current role from Vuex:", role); // Логируем роль для проверки
+      return role === 'CLIENT'; // Показываем Sidebar только если роль 'CLIENT'
     },
     // Проверка текущего пути для отображения Sidebar только на нужных страницах
     showSidebar() {
-      return ['/profile', '/history', '/book-service'].includes(this.$route.path);
+      const currentPath = this.$route.path; // Получаем текущий путь
+      console.log("Current route path:", currentPath); // Логируем путь маршрута
+      return ['/profile', '/history', '/book-service'].includes(currentPath);
     },
   },
   methods: {
     goToPage(page) {
+      console.log("Navigating to:", page); // Логируем, на какую страницу пытаемся перейти
       // Проверка, не находимся ли мы уже на этой странице
       if (this.$route.path !== page) {
         this.$router.push(page); // Если не на текущей странице, выполняем переход

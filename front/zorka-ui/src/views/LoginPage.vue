@@ -57,20 +57,30 @@ export default {
           .then((response) => {
             // Токен приходит в ответе, например, "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             const token = response.data.token;
+            console.log("Received token:", token); // Логируем полученный токен
 
             // Декодируем токен для извлечения данных
             const decodedToken = jwtDecode(token);
+            console.log("Decoded token:", decodedToken); // Логируем декодированный токен
 
             // Извлекаем роль и ID пользователя из декодированного токена
             const role = decodedToken.role; // Предполагаем, что роль хранится в поле 'role'
             const userId = decodedToken.id; // Предполагаем, что ID хранится в поле 'id'
 
+            // Логируем роль и ID
+            console.log("Role from decoded token:", role);
+            console.log("User ID from decoded token:", userId);
+
             // Сохраняем токен и роль в Vuex
             this.$store.dispatch('setToken', token);
-            this.$store.dispatch('setRole', role.toUpperCase()); // Сохраняем роль в верхнем регистре
+            console.log("Saving token in Vuex:", token);
 
-            // Можете сохранить ID, если оно нужно:
+            this.$store.dispatch('setRole', role.toUpperCase()); // Сохраняем роль в верхнем регистре
+            console.log("Saving role in Vuex:", role.toUpperCase()); // Логируем роль, которая сохраняется
+
+            // Сохраняем ID, если оно нужно
             this.$store.dispatch('setUserId', userId);
+            console.log("Saving user ID in Vuex:", userId);
 
             // Редирект на профиль после логина
             this.$router.push('/profile');

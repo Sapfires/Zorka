@@ -5,7 +5,7 @@ Vue.use(Vuex);
 
 export default new Vuex.Store({
     state: {
-        userRole: 'CLIENT', // Роль по умолчанию
+        userRole: '', // Роль по умолчанию
         token: '', // Токен по умолчанию
         userId: '', // ID пользователя
     },

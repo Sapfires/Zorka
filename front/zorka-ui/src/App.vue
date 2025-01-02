@@ -1,9 +1,9 @@
 <template>
   <v-app>
     <!-- Условно показываем Sidebar в зависимости от роли пользователя -->
-    <SidebarClient v-if="userRole === 'client'" />
-    <SidebarMaster v-if="userRole === 'master'" />
-    <SidebarAdmin v-if="userRole === 'admin'" />
+    <SidebarClient v-if="userRole === 'CLIENT'" />
+    <SidebarMaster v-if="userRole === 'MASTER'" />
+    <SidebarAdmin v-if="userRole === 'ADMIN'" />
 
     <!-- Основной контент -->
     <v-main>
@@ -27,7 +27,9 @@ export default {
   computed: {
     // Получаем роль из Vuex хранилища
     userRole() {
-      return this.$store.getters.userRole;
+      const role = this.$store.getters.userRole;
+      console.log("Current userRole in App.vue:", role); // Логируем роль
+      return role;
     },
   },
 };
