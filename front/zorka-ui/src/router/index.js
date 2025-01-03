@@ -6,6 +6,9 @@ import RegistrationPage from '@/views/RegistrationPage.vue';
 import ClientProfilePage from '@/views/ClientProfilePage.vue';
 import HistoryPage from '@/views/HistoryPage.vue';
 import BookServicePage from '@/views/BookServicePage.vue';
+import ClientListPage from '@/views/ClientListPage.vue'; // Страница клиентов
+import MasterListPage from '@/views/MasterListPage.vue'; // Страница мастеров
+import ServiceListPage from '@/views/ServiceListPage.vue'; // Страница услуг
 
 Vue.use(Router);
 
@@ -40,6 +43,21 @@ export default new Router({
             path: '/book-service',
             name: 'BookServicePage',
             component: BookServicePage,
+        },
+        {
+            path: '/admin/clients',
+            name: 'ClientListPage',
+            component: ClientListPage,
+        },
+        {
+            path: '/admin/masters',
+            name: 'MasterListPage',
+            component: MasterListPage,
+        },
+        {
+            path: '/admin/services',
+            name: 'ServiceListPage',
+            component: ServiceListPage,
         },
     ]
 });

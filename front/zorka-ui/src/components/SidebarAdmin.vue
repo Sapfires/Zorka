@@ -1,21 +1,33 @@
 ﻿<template>
-  <v-navigation-drawer app>
+  <v-navigation-drawer app v-if="isAdmin">
     <v-list>
-      <v-list-item @click="goToDashboard">
+      <v-list-item @click="goToPage('/admin/clients')">
         <v-list-item-content>
-          <v-list-item-title>Dashboard</v-list-item-title>
+          <v-list-item-title>Clients</v-list-item-title>
         </v-list-item-content>
       </v-list-item>
 
-      <v-list-item @click="goToManageUsers">
+      <v-list-item @click="goToPage('/admin/masters')">
         <v-list-item-content>
-          <v-list-item-title>Manage Users</v-list-item-title>
+          <v-list-item-title>Masters</v-list-item-title>
         </v-list-item-content>
       </v-list-item>
 
-      <v-list-item @click="goToReports">
+      <v-list-item @click="goToPage('/admin/services')">
         <v-list-item-content>
-          <v-list-item-title>Reports</v-list-item-title>
+          <v-list-item-title>Services</v-list-item-title>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-list-item @click="goToPage('/admin/current')">
+        <v-list-item-content>
+          <v-list-item-title>Current</v-list-item-title>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-list-item @click="goToPage('/admin/dashboards')">
+        <v-list-item-content>
+          <v-list-item-title>Dashboards</v-list-item-title>
         </v-list-item-content>
       </v-list-item>
     </v-list>
@@ -25,15 +37,18 @@
 <script>
 export default {
   name: "SidebarAdmin",
+  computed: {
+    isAdmin() {
+      const role = this.$store.getters.userRole; // Получаем роль пользователя из Vuex
+      return role === 'ADMIN'; // Показываем Sidebar только если роль 'ADMIN'
+    },
+  },
   methods: {
-    goToDashboard() {
-      this.$router.push("/dashboard");
-    },
-    goToManageUsers() {
-      this.$router.push("/manage-users");
-    },
-    goToReports() {
-      this.$router.push("/reports");
+    goToPage(page) {
+      // Переход на страницы админской панели
+      if (this.$route.path !== page) {
+        this.$router.push(page); // Выполняем переход, если мы не на этой странице
+      }
     },
   },
 };
