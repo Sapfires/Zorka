@@ -5,36 +5,59 @@
         <v-card>
           <v-card-title>
             <span class="headline">Master List</span>
+            <v-spacer></v-spacer>
+            <!-- Кнопки для добавления и удаления -->
+            <v-btn @click="addMaster" color="primary" icon>
+              <v-icon>mdi-plus</v-icon>
+            </v-btn>
           </v-card-title>
           <v-card-text>
-            <v-data-table
-                v-if="masters && masters.length > 0"
-                :headers="headers"
-                :items="masters"
-                item-key="user_id"
-                class="elevation-1"
-            >
-              <!-- Слот для каждой строки таблицы -->
-              <template v-slot:item="props">
-                <tr>
-                  <td>{{ props.item.user_id }}</td>
-                  <td>{{ props.item.login }}</td>
-                  <td>{{ props.item.first_name }} {{ props.item.last_name }}</td>
-                  <td>{{ props.item.rate_of_salary }}</td>
-                  <td>{{ props.item.work_experience }} years</td>
-                  <td>{{ props.item.brief_information || 'No information available' }}</td>
-                  <td>
-                    <v-btn @click="viewServices(props.item)" color="primary">View Services</v-btn>
-                  </td>
-                </tr>
-              </template>
-            </v-data-table>
-
-            <div v-else>
-              <p>No masters available</p>
+            <div v-infinite-scroll="loadMasters" :disabled="loading" class="masters-list">
+              <v-data-table
+                  v-if="masters.length > 0"
+                  :headers="headers"
+                  :items="masters"
+                  item-key="user_id"
+                  class="elevation-1"
+                  hide-default-footer
+              >
+                <template v-slot:item="props">
+                  <tr @click="editMaster(props.item.user_id)" style="cursor: pointer;">
+                    <td>
+                      <!-- Отображение фото мастера -->
+                      <v-img
+                          :src="props.item.photo || 'default-photo-url.jpg'"
+                          max-width="50"
+                          max-height="50"
+                          contain
+                      />
+                    </td>
+                    <td>{{ props.item.login }}</td>
+                    <td>{{ props.item.first_name }} {{ props.item.last_name }}</td>
+                    <td>{{ props.item.rate_of_salary }}</td>
+                    <td>{{ props.item.work_experience }} years</td>
+                    <td>{{ props.item.brief_information || 'No information available' }}</td>
+                    <td>
+                      <div v-if="props.item.services && props.item.services.length > 0">
+                        <div v-for="service in props.item.services" :key="service.id">
+                          {{ service.name || 'No Name' }}
+                        </div>
+                      </div>
+                      <div v-else>
+                        No services available
+                      </div>
+                    </td>
+                    <td>
+                      <v-btn @click.stop="deleteMaster(props.item.user_id)" color="red" icon>
+                        <v-icon>mdi-delete</v-icon>
+                      </v-btn>
+                    </td>
+                  </tr>
+                </template>
+              </v-data-table>
+              <!-- Индикатор загрузки -->
+              <v-progress-circular v-if="loading" indeterminate color="primary" class="ma-3" />
             </div>
-
-            <v-btn @click="loadMasters" color="primary">Refresh Masters</v-btn>
 
             <v-alert v-if="error" type="error" dismissible>
               {{ error }}
@@ -53,56 +76,101 @@ export default {
   name: "MasterListPage",
   data() {
     return {
-      masters: [],
+      masters: [],        // Мастера
       headers: [
-        { text: "ID", align: "start", key: "user_id", sortable: true },
+        { text: "Photo", align: "start", key: "photo", sortable: false },
         { text: "Login", align: "start", key: "login", sortable: true },
         { text: "Name", align: "start", key: "name" },
         { text: "Salary Rate", align: "start", key: "rate_of_salary" },
         { text: "Experience", align: "start", key: "work_experience" },
         { text: "Brief Info", align: "start", key: "brief_information" },
         { text: "Services", align: "start", key: "services" },
+        { text: "Actions", align: "end", key: "actions", sortable: false },
       ],
-      error: "",
+      error: "",          // Сообщение об ошибке
+      loading: false,     // Флаг загрузки
     };
   },
   created() {
-    this.loadMasters(); // Загружаем мастеров при создании компонента
+    this.loadMasters(); // Загружаем всех мастеров при создании компонента
   },
   methods: {
     async loadMasters() {
+      if (this.loading) return; // Если данные уже загружаются, не выполняем запрос
+      this.loading = true; // Включаем индикатор загрузки
+
       try {
         const token = this.$store.getters.token || localStorage.getItem("token");
 
         if (!token) {
-          this.$router.push("/login");
+          await this.$router.push("/login");
           return;
         }
 
+        // Запрос на сервер для получения всех мастеров
         const response = await axios.get("http://localhost:3000/masters", {
           headers: {
-            Authorization: `${token}`, // Убедись, что Bearer перед токеном
+            Authorization: `${token}`,
           },
         });
 
-        // Проверь данные с сервера
-        console.log('Raw masters data:', JSON.stringify(response.data, null, 2));
+        // Добавляем новые данные в массив мастеров
+        const newMasters = response.data;
 
-        // "Сбрось" данные через JSON для устранения проксирования
-        this.masters = JSON.parse(JSON.stringify(response.data));
+        if (newMasters && newMasters.length > 0) {
+          this.masters = [...this.masters, ...newMasters]; // Добавляем все данные в список
+        }
       } catch (error) {
         console.error("Error fetching masters:", error);
         this.error = "Failed to load masters. Please try again later.";
+      } finally {
+        this.loading = false; // Отключаем индикатор загрузки
       }
     },
-    viewServices(master) {
-      // Здесь можно открыть окно с подробностями об услугах
-      console.log("Services for master:", master.services);
-    }
+
+    // Метод для перехода на страницу редактирования мастера
+    editMaster(userId) {
+      this.$router.push(`/edit-master/${userId}`);
+    },
+
+    // Метод для перехода на страницу добавления нового мастера
+    addMaster() {
+      this.$router.push("/edit-master");
+    },
+
+    // Метод для удаления мастера
+    async deleteMaster(userId) {
+      const confirmation = confirm("Are you sure you want to delete this master?");
+      if (!confirmation) return;
+
+      try {
+        const token = this.$store.getters.token || localStorage.getItem("token");
+
+        if (!token) {
+          await this.$router.push("/login");
+          return;
+        }
+
+        await axios.delete(`http://localhost:3000/masters/${userId}`, {
+          headers: {
+            Authorization: `${token}`,
+          },
+        });
+
+        // После удаления удаляем мастера из локального списка
+        this.masters = this.masters.filter((master) => master.user_id !== userId);
+      } catch (error) {
+        console.error("Error deleting master:", error);
+        this.error = "Failed to delete master. Please try again later.";
+      }
+    },
   },
 };
 </script>
 
 <style scoped>
-/* Дополнительные стили (если нужно) */
+.masters-list {
+  max-height: 70vh; /* Ограничиваем максимальную высоту блока с мастерами */
+  overflow-y: auto; /* Добавляем вертикальную прокрутку */
+}
 </style>

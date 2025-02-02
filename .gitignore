@@ -131,4 +131,5 @@ dist
 /front/.idea
 /front/zorka-ui/package-lock.json
 /package-lock.json
-/.idea
+/.idea/
+/.idea/

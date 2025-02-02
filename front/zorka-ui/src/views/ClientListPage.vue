@@ -7,43 +7,45 @@
             <span class="headline">Client List</span>
           </v-card-title>
           <v-card-text>
-            <v-data-table
-                v-if="clients && clients.length > 0"
-                :headers="headers"
-                :items="clients"
-                item-key="id"
-                class="elevation-1"
-            >
-              <!-- Слот для каждой строки таблицы -->
-              <template v-slot:item="props">
-                <tr>
-                  <td>{{ props.item.id }}</td>
-                  <td>{{ props.item.login }}</td>
-                  <td>{{ props.item.phone_number || 'No phone number' }}</td>
-                  <td>
-                    <v-chip :color="props.item.role === 'CLIENT' ? 'blue' : 'green'" dark>
-                      {{ props.item.role }}
-                    </v-chip>
-                  </td>
-                  <td>
-                    <v-img
-                        v-if="props.item.photo"
-                        :src="props.item.photo"
-                        max-width="50"
-                        max-height="50"
-                        alt="User Photo"
-                    ></v-img>
-                    <span v-else>No photo</span>
-                  </td>
-                </tr>
-              </template>
-            </v-data-table>
-
-            <div v-else>
-              <p>No clients available</p>
+            <div class="clients-list">
+              <v-data-table
+                  v-if="clients && clients.length > 0"
+                  :headers="headers"
+                  :items="clients"
+                  item-key="id"
+                  class="elevation-1"
+                  hide-default-footer
+              >
+                <!-- Слот для каждой строки таблицы -->
+                <template v-slot:item="props">
+                  <tr>
+                    <td>
+                      <v-img
+                          v-if="props.item.photo"
+                          :src="props.item.photo"
+                          max-width="50"
+                          max-height="50"
+                          alt="User Photo"
+                      ></v-img>
+                      <span v-else>No photo</span>
+                    </td>
+                    <td>{{ props.item.login }}</td>
+                    <td>{{ props.item.phone_number || 'No phone number' }}</td>
+                    <td>
+                      <!-- Кнопка с иконкой для блокировки/разблокировки пользователя -->
+                      <v-btn
+                          color="primary"
+                          @click="toggleBlockStatus(props.item.id, props.item.blocked)"
+                          :title="props.item.blocked ? 'Unblock User' : 'Block User'"
+                          icon
+                      >
+                        <v-icon>{{ props.item.blocked ? 'mdi-lock' : 'mdi-lock-open' }}</v-icon>
+                      </v-btn>
+                    </td>
+                  </tr>
+                </template>
+              </v-data-table>
             </div>
-
-            <v-btn @click="loadClients" color="primary">Refresh Clients</v-btn>
 
             <v-alert v-if="error" type="error" dismissible>
               {{ error }}
@@ -64,11 +66,10 @@ export default {
     return {
       clients: [],
       headers: [
-        { text: "ID", align: "start", key: "id", sortable: true },
-        { text: "Login", align: "start", key: "login", sortable: true },
-        { text: "Phone Number", align: "start", key: "phone_number" },
-        { text: "Role", align: "start", key: "role" },
-        { text: "Photo", align: "start", key: "photo" },
+        {text: "Photo", align: "start", key: "photo"},
+        {text: "Login", align: "start", key: "login", sortable: true},
+        {text: "Phone Number", align: "start", key: "phone_number"},
+        {text: "Actions", align: "center", key: "actions"}, // Колонка для действий
       ],
       error: "",
     };
@@ -88,24 +89,56 @@ export default {
 
         const response = await axios.get("http://localhost:3000/users", {
           headers: {
-            Authorization: `${token}`, // Убедись, что Bearer перед токеном
+            Authorization: `${token}`, // Убедись, что перед токеном
           },
         });
 
-        // Проверь данные с сервера
-        console.log('Raw clients data:', JSON.stringify(response.data, null, 2));
-
-        // "Сбрось" данные через JSON для устранения проксирования
-        this.clients = JSON.parse(JSON.stringify(response.data));
+        this.clients = response.data;
       } catch (error) {
         console.error("Error fetching clients:", error);
         this.error = "Failed to load clients. Please try again later.";
       }
-    }
+    },
+
+    // Метод для блокировки/разблокировки пользователя
+    async toggleBlockStatus(clientId, currentBlockedStatus) {
+      try {
+        const token = this.$store.getters.token || localStorage.getItem("token");
+
+        if (!token) {
+          this.$router.push("/login");
+          return;
+        }
+
+        await axios.put(`http://localhost:3000/users/lock/${clientId}`, {
+          blocked: !currentBlockedStatus, // Переключаем статус блокировки
+        }, {
+          headers: {
+            Authorization: `${token}`,
+          },
+        });
+
+        // Обновляем статус блокировки в списке клиентов
+        this.clients = this.clients.map(client =>
+            client.id === clientId ? {...client, blocked: !currentBlockedStatus} : client
+        );
+      } catch (error) {
+        console.error("Error changing block status:", error);
+        this.error = "Failed to update block status. Please try again later.";
+      }
+    },
   },
 };
 </script>
 
 <style scoped>
-/* Дополнительные стили (если нужно) */
+.clients-list {
+  max-height: 70vh; /* Ограничиваем максимальную высоту для списка */
+  overflow-y: auto; /* Добавляем вертикальную прокрутку */
+}
+
+/* Стиль для кнопок */
+.v-btn {
+  margin: 0 5px;
+}
 </style>

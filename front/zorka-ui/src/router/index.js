@@ -9,6 +9,9 @@ import BookServicePage from '@/views/BookServicePage.vue';
 import ClientListPage from '@/views/ClientListPage.vue'; // Страница клиентов
 import MasterListPage from '@/views/MasterListPage.vue'; // Страница мастеров
 import ServiceListPage from '@/views/ServiceListPage.vue'; // Страница услуг
+import EditServicePage from '@/views/EditServicePage.vue'; // Страница редактирования услуг
+import EditMasterPage from '@/views/EditMasterPage.vue'; // Страница услуг
+import CurrentPage from '@/views/CurrentPage.vue'; // Страница услуг
 
 Vue.use(Router);
 
@@ -58,6 +61,21 @@ export default new Router({
             path: '/admin/services',
             name: 'ServiceListPage',
             component: ServiceListPage,
+        },
+        {
+            path: '/admin/current',
+            name: 'CurrentPage',
+            component: CurrentPage,
+        },
+        {
+            path: '/edit-service/:id?',
+            name: 'EditService',
+            component: EditServicePage, // Страница редактирования сервиса
+        },
+        {
+            path: '/edit-master/:id?',
+            name: 'EditMaster',
+            component: EditMasterPage, // Страница редактирования сервиса
         },
     ]
 });

@@ -11,25 +11,51 @@
             item-text="name"
             item-value="id"
             dense
-            @change="fetchAvailability"
+            outlined
+            @change="handleServiceChange"
         />
       </div>
 
-      <div class="demo-app-sidebar-section">
-        <label>
-          <input
-              type="checkbox"
-              :checked="calendarOptions.weekends"
-              @change="handleWeekendsToggle"
-          />
-          toggle weekends
-        </label>
+      <!-- Секция с выпадающим списком мастеров -->
+      <div class="demo-app-sidebar-section" v-if="masters.length > 0">
+        <h2>Select a Master</h2>
+        <v-select
+            v-model="selectedMaster"
+            :items="masters"
+            label="Choose a master"
+            item-text="fullName"
+            item-value="id"
+            dense
+            outlined
+            @change="fetchMasterSchedule"
+        />
       </div>
 
+      <!-- Переключатель weekends -->
       <div class="demo-app-sidebar-section">
+        <v-checkbox
+            v-model="calendarOptions.weekends"
+            label="Show weekends"
+            @change="handleWeekendsToggle"
+        />
+      </div>
+
+      <!-- Кнопка для переключения видимости событий -->
+      <div class="demo-app-sidebar-section">
+        <v-btn
+            @click="toggleEventsVisibility"
+            color="primary"
+            small
+        >
+          {{ showEvents ? 'Hide Events' : 'Show Events' }}
+        </v-btn>
+      </div>
+
+      <!-- Список событий (скрываемый) -->
+      <div class="demo-app-sidebar-section" v-if="showEvents">
         <h2>All Events ({{ currentEvents.length }})</h2>
-        <ul>
-          <li v-for="event in currentEvents" :key="event.id">
+        <ul class="event-list">
+          <li v-for="event in currentEvents" :key="event.id" class="event-item">
             <b>{{ event.startStr }}</b>
             <i>{{ event.title }}</i>
           </li>
@@ -61,12 +87,14 @@ import {createEventId} from "@/utils/event-utils";
 
 export default {
   components: {
-    FullCalendar, // make the <FullCalendar> tag available
+    FullCalendar,
   },
   data() {
     return {
       selectedService: null,
+      selectedMaster: null,
       services: [], // массив для хранения данных об услугах
+      masters: [], // массив для мастеров выбранной услуги
       calendarOptions: {
         plugins: [
           dayGridPlugin,
@@ -91,19 +119,17 @@ export default {
         events: []
       },
       currentEvents: [],
+      showEvents: false, // состояние видимости секции событий
     };
   },
   created() {
-    // Получаем токен из Vuex или localStorage
     const token = this.$store.getters.token || localStorage.getItem('token');
 
-    // Если токен отсутствует, перенаправляем на страницу логина
     if (!token) {
       this.$router.push('/login');
       return;
     }
 
-    // Загружаем данные с сервера при создании компонента
     axios
         .get('http://localhost:3000/services', {
           headers: {
@@ -111,7 +137,10 @@ export default {
           },
         })
         .then((response) => {
-          this.services = response.data; // Сохраняем полученные данные в массив
+          this.services = response.data;
+          if (this.selectedService) {
+            this.fetchAvailability();
+          }
         })
         .catch((error) => {
           console.error('Error fetching services:', error);
@@ -119,23 +148,51 @@ export default {
   },
   methods: {
     handleWeekendsToggle() {
-      this.calendarOptions.weekends = !this.calendarOptions.weekends; // update a property
+      this.calendarOptions.weekends = !this.calendarOptions.weekends;
     },
 
     handleDateSelect(selectInfo) {
-      let title = prompt('Please enter a new title for your event');
-      let calendarApi = selectInfo.view.calendar;
+      if (!this.selectedService || !this.selectedMaster) {
+        alert('Please select a service and a master before adding an event.');
+        return;
+      }
 
-      calendarApi.unselect(); // clear date selection
+      // Получаем название выбранной услуги и мастера
+      const selectedServiceName = this.services.find(service => service.id === this.selectedService)?.name;
+      const selectedMasterName = this.masters.find(master => master.id === this.selectedMaster)?.fullName;
 
-      if (title) {
-        calendarApi.addEvent({
-          id: createEventId(),
-          title,
-          start: selectInfo.startStr,
-          end: selectInfo.endStr,
-          allDay: selectInfo.allDay,
-        });
+      // Подтверждение регистрации
+      const confirmationMessage = `You are about to register for the service: ${selectedServiceName} with master: ${selectedMasterName}. Confirm?`;
+
+      if (confirm(confirmationMessage)) {
+        const newEvent = {
+          service_id: this.selectedService,
+          client_id: this.$store.getters.userId, // пример получения id клиента из Vuex
+          master_id: this.selectedMaster,
+          start_time: selectInfo.startStr,
+          end_time: selectInfo.endStr,
+        };
+
+        axios
+            .post('http://localhost:3000/schedule', newEvent, {
+              headers: {
+                Authorization: `${this.$store.getters.token}`,
+              },
+            })
+            .then(() => {
+              const calendarApi = selectInfo.view.calendar;
+              calendarApi.unselect();
+              calendarApi.addEvent({
+                id: createEventId(),
+                title: selectedServiceName, // Используем название услуги как заголовок события
+                start: selectInfo.startStr,
+                end: selectInfo.endStr,
+                allDay: selectInfo.allDay,
+              });
+            })
+            .catch((error) => {
+              console.error('Error saving event:', error);
+            });
       }
     },
 
@@ -145,110 +202,163 @@ export default {
       }
     },
 
-
     handleEvents(events) {
       this.currentEvents = events;
     },
 
-    // Новый метод для получения доступности выбранной услуги
-    fetchAvailability() {
-      if (!this.selectedService) return; // Если услуга не выбрана, ничего не делаем
+    handleServiceChange() {
+      this.fetchMasters();
+    },
+
+    fetchMasters() {
+      if (!this.selectedService) return;
 
       const token = this.$store.getters.token || localStorage.getItem('token');
 
-      if (!token) {
-        this.$router.push('/login');
-        return;
-      }
-
-      // Формируем URL для получения доступности
-      const url = `http://localhost:3000/availability2/service/${this.selectedService}?range=week&start='2025-01-03'`;
-
-      function incrementHour(dateString) {
-        const date = new Date(dateString);
-
-// Увеличиваем время на 2 часа
-        date.setHours(date.getHours() + 1);
-
-        return date.toISOString()
-      }
-
-
-      // Загружаем доступные события с сервера
       axios
-          .get(url, {
+          .get(`http://localhost:3000/services/${this.selectedService}/masters`, {
             headers: {
-              Authorization: `${token}`, // Добавляем токен в заголовок
+              Authorization: `${token}`,
             },
           })
           .then((response) => {
-            // Обновляем события в календаре
-            console.log(response.data.events);
-            this.calendarOptions.events = response.data.events.map((event) => ({
-              id: createEventId(),
-              title: event.description,
-              start: event.start_time,
-              end: incrementHour(event.start_time),
-              description: event.description,
-              allDay: false,
+            this.masters = response.data.map(master => ({
+              id: master.id,
+              fullName: `${master.first_name} ${master.last_name}`,
             }));
-            console.log(this.calendarOptions.events);
           })
           .catch((error) => {
-            console.error('Error fetching events:', error);
+            console.error('Error fetching masters:', error);
           });
+    },
+
+    fetchMasterSchedule() {
+      if (!this.selectedMaster) return;
+
+      const token = this.$store.getters.token || localStorage.getItem('token');
+
+      axios
+          .get(`http://localhost:3000/schedule/master/${this.selectedMaster}`, {
+            headers: {
+              Authorization: `${token}`,
+            },
+          })
+          .then((response) => {
+            const masterEvents = response.data.map(event => ({
+              id: event.id,
+              title: `${event.service_name} - ${event.description}`,
+              start: event.start_time,
+              end: event.end_time,
+              description: `${event.service_name} for ${event.client_name}`,
+              allDay: false,
+            }));
+
+            // Объединяем события мастера с текущими событиями
+            this.calendarOptions.events = [
+              ...this.calendarOptions.events,
+              ...masterEvents
+            ];
+          })
+          .catch((error) => {
+            console.error('Error fetching master schedule:', error);
+          });
+    },
+
+    // Переключение видимости секции событий
+    toggleEventsVisibility() {
+      this.showEvents = !this.showEvents;
     },
   },
 };
 </script>
 
-<style lang="css">
-h2 {
-  margin: 0;
-  font-size: 16px;
-}
-
-ul {
-  margin: 0;
-  padding: 0 0 0 1.5em;
-}
-
-li {
-  margin: 1.5em 0;
-  padding: 0;
-}
-
-b {
-  /* used for event dates/times */
-  margin-right: 3px;
-}
-
+<style lang="scss">
 .demo-app {
   display: flex;
-  min-height: 100%;
-  font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
-  font-size: 14px;
+  min-height: 100vh;
+  font-family: 'Arial', sans-serif;
+  background-color: #f8f9fa;
 }
 
 .demo-app-sidebar {
   width: 300px;
-  line-height: 1.5;
-  background: #eaf9ff;
-  border-right: 1px solid #d3e2e8;
+  background: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  padding: 1.5em;
 }
 
 .demo-app-sidebar-section {
-  padding: 2em;
+  margin-bottom: 1.5em;
+
+  h2 {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 0.5em;
+  }
+
+  .v-select {
+    margin-bottom: 1em;
+  }
+
+  .v-checkbox {
+    margin-top: 1em;
+  }
+}
+
+.event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  .event-item {
+    padding: 0.5em 0;
+    border-bottom: 1px solid #e0e0e0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    b {
+      font-weight: bold;
+      margin-right: 0.5em;
+    }
+
+    i {
+      color: #666;
+    }
+  }
 }
 
 .demo-app-main {
   flex-grow: 1;
-  padding: 3em;
+  padding: 2em;
+  background-color: #ffffff;
 }
 
 .fc {
-  /* the calendar root */
   max-width: 1100px;
   margin: 0 auto;
+}
+
+/* Стили для FullCalendar */
+.fc-header-toolbar {
+  margin-bottom: 1em;
+}
+
+.fc-event {
+  background-color: #4a90e2;
+  border: none;
+  padding: 0.25em 0.5em;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.fc-daygrid-event {
+  cursor: pointer;
+}
+
+.fc-daygrid-event:hover {
+  opacity: 0.9;
 }
 </style>

@@ -82,8 +82,15 @@ export default {
             this.$store.dispatch('setUserId', userId);
             console.log("Saving user ID in Vuex:", userId);
 
-            // Редирект на профиль после логина
-            this.$router.push('/profile');
+            // Редирект в зависимости от роли
+            if (role === 'CLIENT') {
+              this.$router.push('/profile');
+            } else if (role === 'ADMIN') {
+              this.$router.push('/admin/clients');
+            } else {
+              // Если роль не известна, можно перенаправить на главную страницу
+              this.$router.push('/');
+            }
           })
           .catch((error) => {
             console.error('Login failed:', error);

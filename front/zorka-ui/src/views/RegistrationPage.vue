@@ -8,12 +8,6 @@
           </v-card-title>
           <v-card-text>
             <v-form v-model="formValid">
-              <v-text-field
-                  label="Full Name"
-                  v-model="fullName"
-                  :rules="[rules.required]"
-                  required
-              ></v-text-field>
 
               <v-text-field
                   label="Email"
@@ -54,12 +48,13 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "RegistrationPage",
   data() {
     return {
       formValid: false,
-      fullName: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -75,17 +70,23 @@ export default {
     };
   },
   methods: {
-    submitForm() {
-      // Логика отправки данных формы
-      console.log("Form submitted with the following data:");
-      console.log({
-        fullName: this.fullName,
-        email: this.email,
-        password: this.password,
-      });
+    async submitForm() {
+      try {
+        // Отправка данных на сервер
+        const response = await axios.post("http://localhost:3000/register", {
+          login: this.email,  // Здесь используется email как login
+          password: this.password,
+          repeat_password: this.confirmPassword,
+        });
 
-      // После успешной отправки можно, например, перенаправить на страницу входа
-      this.$router.push("/login");
+        // Обработка успешного ответа
+        console.log("User registered successfully:", response.data);
+        await this.$router.push("/login"); // Перенаправление на страницу входа
+      } catch (error) {
+        // Обработка ошибок
+        console.error("Error registering user:", error.response ? error.response.data : error.message);
+        alert("Registration failed: " + (error.response ? error.response.data.message : error.message));
+      }
     },
   },
 };
