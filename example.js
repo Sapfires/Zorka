@@ -5,6 +5,7 @@ const mysql = require('mysql2/promise');
 const cors = require('cors');
 const app = express();
 const port = 3000;
+const cron = require('node-cron');
 
 app.use(bodyParser.json());
 
@@ -1356,16 +1357,17 @@ app.get('/revenue-by-day', authenticateToken, async (req, res) => {
 
   try {
     const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute('SELECT\n' +
-        '    DATE(sc.start_time) AS date,\n' +
-        '    SUM(se.price) AS total_revenue\n' +
-        'FROM schedule sc\n' +
-        '         INNER JOIN services se ON sc.service_id = se.id\n' +
-        'WHERE sc.start_time BETWEEN\n' +
-        '          DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, \'%Y-%m-01\')\n' +
-        '          AND LAST_DAY(CURRENT_DATE - INTERVAL 1 MONTH)\n' +
-        'GROUP BY DATE(sc.start_time)\n' +
-        'ORDER BY DATE(sc.start_time)');
+    const [rows] = await connection.execute('SELECT DATE(sp.start_time) AS date,\n' +
+        '       SUM(se.price) AS total_revenue\n' +
+        'FROM service_process sp\n' +
+        'inner join schedule s on sp.schedule_id = s.id\n' +
+        'inner join services se on se.id = s.service_id\n' +
+        'WHERE sp.start_time BETWEEN\n' +
+        '          DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE())-1 DAY)\n' +
+        '          AND LAST_DAY(CURDATE())\n' +
+        '      AND status= \'PAID\'\n' +
+        'GROUP BY DATE(sp.start_time)\n' +
+        'ORDER BY DATE(sp.start_time);');
 
     await connection.end();
 
@@ -1461,19 +1463,20 @@ app.get('/revenue-by-client', authenticateToken, async (req, res) => {
 
   try {
     const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute('SELECT\n' +
-        '    DATE_FORMAT(sc.start_time, \'%Y-%m\') AS month,\n' +
-        '    sc.client_id as client_id,\n' +
-        '    concat(u.first_name, concat(\' \', u.last_name)) as client_name,\n' +
-        '    SUM(se.price) AS amount\n' +
-        'FROM schedule sc\n' +
-        '         INNER JOIN services se ON sc.service_id = se.id\n' +
-        '         INNER JOIN users u on sc.client_id = u.id\n' +
-        'WHERE sc.start_time BETWEEN\n' +
-        '          DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, \'%Y-%m-01\')\n' +
-        '          AND LAST_DAY(CURRENT_DATE - INTERVAL 1 MONTH)\n' +
-        'GROUP BY DATE_FORMAT(sc.start_time, \'%Y-%m\'), sc.client_id,  concat(u.first_name, concat(\' \', u.last_name))\n' +
-        'ORDER BY sc.client_id;\n');
+    const [rows] = await connection.execute('SELECT  DATE_FORMAT(sp.start_time, \'%Y-%m\') AS month,\n' +
+        '       u.id as user_id,\n' +
+        '       concat(u.first_name, concat(\' \', u.last_name)) as client_name,\n' +
+        '       SUM(se.price) AS amount\n' +
+        'FROM service_process sp\n' +
+        '         inner join schedule s on sp.schedule_id = s.id\n' +
+        '         inner join services se on se.id = s.service_id\n' +
+        '         inner join users u on s.client_id = u.id\n' +
+        'WHERE sp.start_time BETWEEN\n' +
+        '    DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE())-1 DAY)\n' +
+        '    AND LAST_DAY(CURDATE())\n' +
+        '  AND status= \'PAID\'\n' +
+        'GROUP BY DATE_FORMAT(sp.start_time, \'%Y-%m\'), u.id,  concat(u.first_name, concat(\' \', u.last_name))\n' +
+        'ORDER BY DATE_FORMAT(sp.start_time, \'%Y-%m\');');
 
     await connection.end();
 
@@ -1489,6 +1492,32 @@ app.get('/revenue-by-client', authenticateToken, async (req, res) => {
   }
 });
 
+async function executeStoredProcedure() {
+    try {
+        // Создание подключения к базе данных
+        const connection = await mysql.createConnection(dbConfig);
+
+        console.log('Connected to the database');
+
+        // Выполнение хранимой процедуры
+        const [rows] = await connection.execute('CALL AddExpectedServiceProcesses()');
+        console.log('Stored procedure executed successfully:', rows);
+
+        // Закрытие соединения
+        await connection.end();
+    } catch (err) {
+        console.error('Error executing stored procedure:', err);
+    }
+}
+
+// Настройка задачи для выполнения хранимой процедуры каждую минуту
+cron.schedule('* * * * *', () => {
+    console.log('Executing stored procedure AddExpectedServiceProcesses...');
+    executeStoredProcedure();
+});
+
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
+
+
