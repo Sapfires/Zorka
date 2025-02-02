@@ -12,12 +12,10 @@
                 <v-list-item v-for="(item, index) in procedures" :key="index">
                   <v-list-item-content>
                     <v-row align="center" no-gutters>
-                      <!-- Колонка 1: Иконка услуги -->
                       <v-col cols="2" class="d-flex justify-center">
                         <v-img :src="item.photo" alt="Service photo" max-width="56" class="rounded-circle"></v-img>
                       </v-col>
 
-                      <!-- Колонка 2: Название услуги, дата и имя мастера -->
                       <v-col cols="8">
                         <v-row class="text-wrap" no-gutters>
                           <v-col cols="12" class="py-0">
@@ -32,7 +30,6 @@
                         </v-row>
                       </v-col>
 
-                      <!-- Колонка 3: Фото мастера -->
                       <v-col cols="2" class="d-flex justify-center">
                         <v-img :src="item.service_name" alt="Master's photo" max-width="56" class="rounded-circle"></v-img>
                       </v-col>
@@ -60,11 +57,10 @@ export default {
   name: "HistoryPage",
   data() {
     return {
-      procedures: [], // Массив для хранения истории
+      procedures: [],
     };
   },
   created() {
-    // Получаем данные с сервера при создании компонента
     this.fetchHistory();
   },
   methods: {
@@ -72,25 +68,22 @@ export default {
       try {
         const token = this.$store.getters.token || localStorage.getItem("token");
         const userId = this.$store.getters.userId || localStorage.getItem("userId");
-        // Если токен отсутствует, редиректим на страницу логина
         if (!token) {
           await this.$router.push('/login');
           return;
         }
 
-        // Отправляем запрос на сервер
         const response = await axios.get(`http://localhost:3000/history/client/${userId}`, {
           headers: {
-            Authorization: `${token}` // Передаем токен в заголовке
+            Authorization: `${token}`
           }
         });
-        this.procedures = response.data.history; // Заполняем массив процедур
+        this.procedures = response.data.history;
       } catch (error) {
         console.error('Error fetching history:', error);
       }
     },
     formatDate(dateString) {
-      // Форматируем дату, чтобы она выглядела красиво
       const date = new Date(dateString);
       const options = {year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'};
       return date.toLocaleDateString('en-US', options);
@@ -100,14 +93,13 @@ export default {
 </script>
 
 <style scoped>
-/* Стили для страницы истории */
 .v-card {
   max-width: 600px;
   margin: auto;
 }
 
 .v-img {
-  border-radius: 50%; /* Круглая иконка */
+  border-radius: 50%;
 }
 
 .font-weight-bold {
@@ -123,7 +115,6 @@ export default {
   white-space: normal;
 }
 
-/* Уменьшаем размер шрифта во второй и третьей колонке */
 .small-text {
   font-size: 0.85rem;
 }

@@ -6,12 +6,13 @@ import RegistrationPage from '@/views/RegistrationPage.vue';
 import ClientProfilePage from '@/views/ClientProfilePage.vue';
 import HistoryPage from '@/views/HistoryPage.vue';
 import BookServicePage from '@/views/BookServicePage.vue';
-import ClientListPage from '@/views/ClientListPage.vue'; // Страница клиентов
-import MasterListPage from '@/views/MasterListPage.vue'; // Страница мастеров
-import ServiceListPage from '@/views/ServiceListPage.vue'; // Страница услуг
-import EditServicePage from '@/views/EditServicePage.vue'; // Страница редактирования услуг
-import EditMasterPage from '@/views/EditMasterPage.vue'; // Страница услуг
-import CurrentPage from '@/views/CurrentPage.vue'; // Страница услуг
+import ClientListPage from '@/views/ClientListPage.vue';
+import MasterListPage from '@/views/MasterListPage.vue';
+import ServiceListPage from '@/views/ServiceListPage.vue';
+import EditServicePage from '@/views/EditServicePage.vue';
+import EditMasterPage from '@/views/EditMasterPage.vue';
+import CurrentPage from '@/views/CurrentPage.vue';
+import DashboardsPage from '@/views/DashboardsPage.vue';
 
 Vue.use(Router);
 
@@ -70,12 +71,17 @@ export default new Router({
         {
             path: '/edit-service/:id?',
             name: 'EditService',
-            component: EditServicePage, // Страница редактирования сервиса
+            component: EditServicePage,
         },
         {
             path: '/edit-master/:id?',
             name: 'EditMaster',
-            component: EditMasterPage, // Страница редактирования сервиса
+            component: EditMasterPage,
+        },
+        {
+            path: '/admin/dashboards',
+            name: 'DashboardsPage',
+            component: DashboardsPage,
         },
     ]
 });

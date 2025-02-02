@@ -9,26 +9,21 @@
           <v-card-text>
             <v-form>
 
-              <!-- Квадратная область для загрузки изображения -->
               <v-avatar
                   size="120"
                   class="mr-4"
                   :style="imageBase64 ? '' : 'cursor: pointer; background-color: #f0f0f0;'"
                   @click="triggerFileInput"
               >
-                <!-- Обработчик клика -->
-                <!-- Отображаем изображение, если оно есть -->
                 <v-img
                     v-if="imageBase64"
                     :src="imageBase64"
                     alt="Uploaded Image"
                     class="rounded-lg"
                 ></v-img>
-                <!-- Если изображения нет, отображаем иконку -->
                 <v-icon v-else>mdi-camera</v-icon>
               </v-avatar>
 
-              <!-- Скрытый input для выбора файла -->
               <input
                   ref="fileInput"
                   type="file"
@@ -80,8 +75,8 @@ export default {
   name: "ClientProfilePage",
   data() {
     return {
-      imageBase64: "", // Для хранения Base64 изображения
-      isUploading: false, // Индикатор загрузки
+      imageBase64: "",
+      isUploading: false,
       firstName: "",
       lastName: "",
       email: "",
@@ -99,7 +94,7 @@ export default {
   },
   methods: {
     triggerFileInput() {
-      this.$refs.fileInput.click(); // Открываем окно выбора файла
+      this.$refs.fileInput.click();
     },
 
     handleFileChange(event) {
@@ -109,40 +104,34 @@ export default {
         const reader = new FileReader();
 
         reader.onload = () => {
-          this.imageBase64 = reader.result; // Сохраняем изображение в формате Base64
+          this.imageBase64 = reader.result;
         };
 
-        reader.readAsDataURL(file); // Чтение файла в формате Base64
+        reader.readAsDataURL(file);
       }
     },
 
-    // Метод для получения данных пользователя с бэкенда
     async fetchUserData() {
       try {
-        // Получаем токен из Vuex или localStorage
         const token = this.$store.getters.token || localStorage.getItem("token");
         const userId = this.$store.getters.userId || localStorage.getItem("userId");
-        // Если токен отсутствует, редиректим на страницу логина
         if (!token) {
           await this.$router.push('/login');
           return;
         }
 
-        // Отправляем запрос на сервер
         const response = await axios.get(`http://localhost:3000/users/${userId}`, {
           headers: {
-            Authorization: `${token}` // Передаем токен в заголовке
+            Authorization: `${token}`
           }
         });
 
-        // Заполняем форму данными, полученными с сервера
         const { login, phone_number, first_name, last_name, photo } = response.data;
 
         this.email = login;
-        this.phone = phone_number || ''; // Если нет телефона, оставляем пустое поле
-        // Дополнительные данные, которые будут добавляться позже (например, фамилия и имя)
-        this.firstName = first_name; // Пока оставляем пустыми, добавим позже
-        this.lastName = last_name;  // Пока оставляем пустыми, добавим позже
+        this.phone = phone_number || '';
+        this.firstName = first_name;
+        this.lastName = last_name;
         this.imageBase64 = photo;
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -150,9 +139,7 @@ export default {
       }
     },
 
-    // Метод для сохранения изменений профиля
     saveProfile() {
-      // Логика для сохранения профиля (например, отправка данных на сервер)
       console.log("Profile updated:", {
         firstName: this.firstName,
         lastName: this.lastName,
@@ -162,16 +149,13 @@ export default {
         photo: this.imageBase64,
       });
 
-      // Здесь можно сделать запрос для сохранения данных, например:
       this.saveProfileToBackend();
     },
 
-    // Метод для отправки обновленных данных на сервер (по желанию)
     async saveProfileToBackend() {
       try {
         const token = this.$store.getters.token || localStorage.getItem("token");
         const userId = this.$store.getters.userId || localStorage.getItem("userId");
-        // Если токен отсутствует, редиректим на страницу логина
         if (!token) {
           await this.$router.push('/login');
           return;
@@ -200,7 +184,6 @@ export default {
 </script>
 
 <style scoped>
-/* Стили для страницы профиля */
 .v-card {
   max-width: 600px;
   margin: auto;

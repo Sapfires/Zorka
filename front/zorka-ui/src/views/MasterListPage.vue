@@ -6,7 +6,6 @@
           <v-card-title>
             <span class="headline">Master List</span>
             <v-spacer></v-spacer>
-            <!-- Кнопки для добавления и удаления -->
             <v-btn @click="addMaster" color="primary" icon>
               <v-icon>mdi-plus</v-icon>
             </v-btn>
@@ -24,7 +23,6 @@
                 <template v-slot:item="props">
                   <tr @click="editMaster(props.item.user_id)" style="cursor: pointer;">
                     <td>
-                      <!-- Отображение фото мастера -->
                       <v-img
                           :src="props.item.photo || 'default-photo-url.jpg'"
                           max-width="50"
@@ -55,7 +53,6 @@
                   </tr>
                 </template>
               </v-data-table>
-              <!-- Индикатор загрузки -->
               <v-progress-circular v-if="loading" indeterminate color="primary" class="ma-3" />
             </div>
 
@@ -76,7 +73,7 @@ export default {
   name: "MasterListPage",
   data() {
     return {
-      masters: [],        // Мастера
+      masters: [],
       headers: [
         { text: "Photo", align: "start", key: "photo", sortable: false },
         { text: "Login", align: "start", key: "login", sortable: true },
@@ -87,17 +84,17 @@ export default {
         { text: "Services", align: "start", key: "services" },
         { text: "Actions", align: "end", key: "actions", sortable: false },
       ],
-      error: "",          // Сообщение об ошибке
-      loading: false,     // Флаг загрузки
+      error: "",
+      loading: false,
     };
   },
   created() {
-    this.loadMasters(); // Загружаем всех мастеров при создании компонента
+    this.loadMasters();
   },
   methods: {
     async loadMasters() {
-      if (this.loading) return; // Если данные уже загружаются, не выполняем запрос
-      this.loading = true; // Включаем индикатор загрузки
+      if (this.loading) return;
+      this.loading = true;
 
       try {
         const token = this.$store.getters.token || localStorage.getItem("token");
@@ -107,38 +104,33 @@ export default {
           return;
         }
 
-        // Запрос на сервер для получения всех мастеров
         const response = await axios.get("http://localhost:3000/masters", {
           headers: {
             Authorization: `${token}`,
           },
         });
 
-        // Добавляем новые данные в массив мастеров
         const newMasters = response.data;
 
         if (newMasters && newMasters.length > 0) {
-          this.masters = [...this.masters, ...newMasters]; // Добавляем все данные в список
+          this.masters = [...this.masters, ...newMasters];
         }
       } catch (error) {
         console.error("Error fetching masters:", error);
         this.error = "Failed to load masters. Please try again later.";
       } finally {
-        this.loading = false; // Отключаем индикатор загрузки
+        this.loading = false;
       }
     },
 
-    // Метод для перехода на страницу редактирования мастера
     editMaster(userId) {
       this.$router.push(`/edit-master/${userId}`);
     },
 
-    // Метод для перехода на страницу добавления нового мастера
     addMaster() {
       this.$router.push("/edit-master");
     },
 
-    // Метод для удаления мастера
     async deleteMaster(userId) {
       const confirmation = confirm("Are you sure you want to delete this master?");
       if (!confirmation) return;
@@ -157,7 +149,6 @@ export default {
           },
         });
 
-        // После удаления удаляем мастера из локального списка
         this.masters = this.masters.filter((master) => master.user_id !== userId);
       } catch (error) {
         console.error("Error deleting master:", error);
@@ -170,7 +161,7 @@ export default {
 
 <style scoped>
 .masters-list {
-  max-height: 70vh; /* Ограничиваем максимальную высоту блока с мастерами */
-  overflow-y: auto; /* Добавляем вертикальную прокрутку */
+  max-height: 70vh;
+  overflow-y: auto;
 }
 </style>

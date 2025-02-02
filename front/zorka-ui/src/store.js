@@ -5,13 +5,13 @@ Vue.use(Vuex);
 
 export default new Vuex.Store({
     state: {
-        userRole: '', // Роль по умолчанию
-        token: '', // Токен по умолчанию
-        userId: '', // ID пользователя
+        userRole: '',
+        token: '',
+        userId: '',
     },
     mutations: {
         setUserRole(state, role) {
-            state.userRole = role.toUpperCase(); // Приводим роль в верхний регистр
+            state.userRole = role.toUpperCase();
         },
         setToken(state, token) {
             state.token = token;
@@ -34,6 +34,6 @@ export default new Vuex.Store({
     getters: {
         userRole: (state) => state.userRole,
         token: (state) => state.token,
-        userId: (state) => state.userId, // Добавляем геттер для userId
+        userId: (state) => state.userId,
     },
 });

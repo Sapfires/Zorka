@@ -6,9 +6,8 @@
           <v-card-title>
             <span class="headline">Service List</span>
             <v-spacer></v-spacer>
-            <!-- Кнопка "Add Service" -->
             <v-btn @click="addService" color="primary" icon>
-              <v-icon>mdi-plus</v-icon>  <!-- Иконка плюса -->
+              <v-icon>mdi-plus</v-icon>
             </v-btn>
           </v-card-title>
 
@@ -24,7 +23,6 @@
                 hide-default-footer
                 :items-per-page="services.length"
             >
-              <!-- Слот для каждой строки таблицы -->
               <template v-slot:item="props">
                 <tr @click="editService(props.item)">
                   <td>
@@ -44,14 +42,13 @@
                     <span>{{ props.item.description }}</span>
                   </td>
                   <td>
-                    <!-- Кнопка удаления с иконкой корзины -->
                     <v-btn
                         @click.stop="deleteService(props.item.id)"
                         color="red"
                         icon
                         class="delete-btn"
                     >
-                      <v-icon>mdi-delete</v-icon>  <!-- Иконка корзины -->
+                      <v-icon>mdi-delete</v-icon>
                     </v-btn>
                   </td>
                 </tr>
@@ -82,13 +79,13 @@ export default {
         {text: "Price", align: "start", key: "price"},
         {text: "Duration", align: "start", key: "duration"},
         {text: "Description", align: "start", key: "description"},
-        {text: "Actions", align: "start", key: "actions"},  // Добавлен заголовок для действий
+        {text: "Actions", align: "start", key: "actions"},
       ],
       error: "",
     };
   },
   created() {
-    this.loadServices(); // Загружаем список услуг при создании компонента
+    this.loadServices();
   },
   methods: {
     async loadServices() {
@@ -106,7 +103,6 @@ export default {
           },
         });
 
-        // Сохраняем данные о сервисах
         this.services = response.data;
       } catch (error) {
         console.error("Error fetching services:", error);
@@ -114,17 +110,14 @@ export default {
       }
     },
 
-    // Метод для добавления нового сервиса
     addService() {
-      this.$router.push("/edit-service"); // Переход на страницу добавления нового сервиса
+      this.$router.push("/edit-service");
     },
 
-    // Метод для редактирования сервиса
     editService(service) {
-      this.$router.push(`/edit-service/${service.id}`); // Переход на страницу редактирования выбранного сервиса
+      this.$router.push(`/edit-service/${service.id}`);
     },
 
-    // Метод для удаления сервиса
     async deleteService(serviceId) {
       const confirmed = confirm("Are you sure you want to delete this service?");
 
@@ -138,14 +131,12 @@ export default {
           return;
         }
 
-        // Отправляем запрос на удаление
         await axios.delete(`http://localhost:3000/services/${serviceId}`, {
           headers: {
             Authorization: `${token}`,
           },
         });
 
-        // Удаляем услугу из списка на фронте
         this.services = this.services.filter(service => service.id !== serviceId);
       } catch (error) {
         console.error("Error deleting service:", error);
@@ -157,14 +148,12 @@ export default {
 </script>
 
 <style scoped>
-/* Стиль кнопки удаления */
 .delete-btn {
   background-color: transparent !important;
-  color: red !important; /* Красный цвет текста */
+  color: red !important;
   border: none;
 }
 
-/* Дополнительные стили для кнопки добавления (если нужно) */
 .v-btn.primary {
   margin-right: 10px;
 }

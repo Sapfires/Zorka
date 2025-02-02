@@ -6,15 +6,12 @@ const cors = require('cors');
 const app = express();
 const port = 3000;
 
-// Middleware для парсинга JSON тела запросов
 app.use(bodyParser.json());
 
 app.use(cors());
 
-// Секретный ключ для генерации токенов
 const secretKey = 'yourSecretKey';
 
-// Настройки подключения к базе данных
 const dbConfig = {
   host: 'localhost',
   user: 'root',
@@ -22,38 +19,36 @@ const dbConfig = {
   database: 'test1',
 };
 
-// Middleware для проверки токена
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.status(401).json({ message: 'Токен отсутствует' });
+  if (!token) return res.status(401).json({ message: 'Token is missed' });
 
   jwt.verify(token, secretKey, (err, user) => {
-    if (err) return res.status(403).json({ message: 'Недействительный токен' });
+    if (err) return res.status(403).json({ message: 'Token is not valid' });
     req.user = user;
     next();
   });
 };
 
-// Эндпоинт для логина
 app.post('/login', async (req, res) => {
   const { login, password } = req.body;
 
   if (!login || !password) {
-    return res.status(400).json({ message: 'Логин и пароль обязательны' });
+    return res.status(400).json({ message: 'Login and password are mandatory' });
   }
 
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(
-      'SELECT * FROM users WHERE login = ? AND password = ?',
-      [login, password]
+        'SELECT * FROM users WHERE login = ? AND password = ?',
+        [login, password]
     );
     await connection.end();
 
     if (rows.length === 0) {
-      return res.status(401).json({ message: 'Пользователь не найден' });
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const user = rows[0];
@@ -61,19 +56,19 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign({ id: user.id, login: user.login, role: user.role, blocked: user.blocked }, secretKey, { expiresIn: '1h' });
     if(!user.blocked) {
       res.status(200).json({
-        message: 'Авторизация успешна',
+        message: 'Authorization is successful',
         token: `Bearer ${token}`,
       });
     } else {
-      res.status(400).json({message:'Пользователь заблокирован'});
+      res.status(400).json({message:'User is blocked'});
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Эндпоинт для регистрации пользователя
+
 app.post('/register', async (req, res) => {
   const { login, password, repeat_password } = req.body;
 
@@ -88,21 +83,19 @@ app.post('/register', async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Проверка, существует ли уже пользователь с таким логином
     const [existingUsers] = await connection.execute(
-      'SELECT * FROM users WHERE login = ?',
-      [login]
+        'SELECT * FROM users WHERE login = ?',
+        [login]
     );
 
     if (existingUsers.length > 0) {
       await connection.end();
-      return res.status(409).json({ message: 'Пользователь с таким логином уже существует' });
+      return res.status(409).json({ message: 'The user is already registered' });
     }
 
-    // Регистрация нового пользователя
     const [result] = await connection.execute(
-      'INSERT INTO users (login, password, role) VALUES (?, ?, ?)',
-      [login, password, 'CLIENT']
+        'INSERT INTO users (login, password, role) VALUES (?, ?, ?)',
+        [login, password, 'CLIENT']
     );
 
     await connection.end();
@@ -113,15 +106,13 @@ app.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// CRUD для пользователей
-// Получить список пользователей
 app.get('/users', authenticateToken, async (req, res) => {
   if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Доступ запрещён' });
+    return res.status(403).json({ message: 'Access denied' });
   }
   try {
     const connection = await mysql.createConnection(dbConfig);
@@ -131,16 +122,16 @@ app.get('/users', authenticateToken, async (req, res) => {
     res.status(200).json(rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Получить пользователя по ID
+
 app.get('/users/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
 
   if (req.user.id !== parseInt(id) && req.user.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Доступ запрещён' });
+    return res.status(403).json({ message: 'Access denied' });
   }
 
   try {
@@ -149,57 +140,53 @@ app.get('/users/:id', authenticateToken, async (req, res) => {
     await connection.end();
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     res.status(200).json(rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Создать пользователя
 app.post('/users', authenticateToken, async (req, res) => {
   const { login, password, first_name, last_name, phone_number, photo } = req.body;
 
   if (!login || !password) {
-    return res.status(400).json({ message: 'Логин и пароль обязательны' });
+    return res.status(400).json({ message: 'Login and password are mandatory' });
   }
 
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'INSERT INTO users (login, password, first_name, last_name, photo) VALUES (?, ?, ?, ?, ?)',
-      [login, password, first_name, last_name, phone_number, photo || null]
+        'INSERT INTO users (login, password, first_name, last_name, photo) VALUES (?, ?, ?, ?, ?)',
+        [login, password, first_name, last_name, phone_number, photo || null]
     );
     await connection.end();
 
     res.status(201).json({
-      message: 'Пользователь создан',
+      message: 'User has  been created',
       user_id: result.insertId,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 
-// Обработчик для изменения состояния записи в service_process
 app.patch('/service-process/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params; // Получаем ID из URL
+  const { id } = req.params;
   const { status} = req.body;
 
-  // Проверка на наличие обязательных данных
   if (!status) {
-    return res.status(400).json({ message: 'Статус обязателен' });
+    return res.status(400).json({ message: 'Status is mandatory' });
   }
 
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Запрос для обновления состояния записи
     const [result] = await connection.execute(
         'UPDATE service_process SET status = ?  WHERE id = ?',
         [status, id]
@@ -208,59 +195,57 @@ app.patch('/service-process/:id', authenticateToken, async (req, res) => {
     await connection.end();
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Процесс услуги не найден' });
+      return res.status(404).json({ message: 'Service process is nor found' });
     }
 
-    res.status(200).json({ message: 'Процесс услуги обновлен успешно' });
+    res.status(200).json({ message: 'Service process has been updated' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Обновить пользователя
 app.put('/users/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { login, password, phone_number, first_name, last_name, photo } = req.body;
   if (req.user.id !== parseInt(id)) {
-    return res.status(403).json({ message: 'Доступ запрещён' });
+    return res.status(403).json({ message: 'Access denied' });
   }
 
   if (!login || !password) {
-    return res.status(400).json({ message: 'Логин и пароль обязательны' });
+    return res.status(400).json({ message: 'Login and password are mandatory' });
   }
 
   if (photo && photo.length > 65535) {
-    return res.status(400).json({ message: 'Фото слишком большое. Максимальная длина — 65535 символов.' });
+    return res.status(400).json({ message: 'Photo is too bi. Max size is 100kb' });
   }
 
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'UPDATE users SET login = ?, password = ?, phone_number = ?, first_name = ?, last_name = ? , photo = ? WHERE id = ?',
-      [login, password, phone_number, first_name, last_name, photo, id]
+        'UPDATE users SET login = ?, password = ?, phone_number = ?, first_name = ?, last_name = ? , photo = ? WHERE id = ?',
+        [login, password, phone_number, first_name, last_name, photo, id]
     );
     await connection.end();
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    res.status(200).json({ message: 'Пользователь обновлён' });
+    res.status(200).json({ message: 'User has been updated' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 
-// Обновить пользователя
 app.put('/users/lock/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { blocked } = req.body;
 
   if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Доступ запрещён' });
+    return res.status(403).json({ message: 'Access denied' });
   }
 
 
@@ -274,23 +259,22 @@ app.put('/users/lock/:id', authenticateToken, async (req, res) => {
 
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    res.status(200).json({ message: 'Пользователь' + (blocked? ' заблокирован' : ' разблокирован')});
+    res.status(200).json({ message: 'User is ' + (blocked? ' blocked' : ' unblocked')});
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 
-// Удалить пользователя
 app.delete('/users/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
 
   if (req.user.id !== parseInt(id)) {
-    return res.status(403).json({ message: 'Доступ запрещён' });
+    return res.status(403).json({ message: 'Access denined' });
   }
 
   try {
@@ -299,13 +283,13 @@ app.delete('/users/:id', authenticateToken, async (req, res) => {
     await connection.end();
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User nor found' });
     }
 
-    res.status(200).json({ message: 'Пользователь удалён' });
+    res.status(200).json({ message: 'User has been deleted' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -322,8 +306,8 @@ app.post('/services', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'INSERT INTO services (name, price, photo, description, duration) VALUES (?, ?, ?, ?, ?)',
-      [name, price, photo || null, description || null, duration || null]
+        'INSERT INTO services (name, price, photo, description, duration) VALUES (?, ?, ?, ?, ?)',
+        [name, price, photo || null, description || null, duration || null]
     );
     await connection.end();
 
@@ -348,8 +332,8 @@ app.put('/services/:id', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'UPDATE services SET name = ?, price = ?, photo = ?, description = ?, duration = ? WHERE id = ?',
-      [name, price, photo || null, description || null, duration || null, id]
+        'UPDATE services SET name = ?, price = ?, photo = ?, description = ?, duration = ? WHERE id = ?',
+        [name, price, photo || null, description || null, duration || null, id]
     );
     await connection.end();
 
@@ -435,22 +419,22 @@ app.post('/masters', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [userResult] = await connection.execute(
-      'INSERT INTO users (login, password, role) VALUES (?, ?, ?)',
-      [login, password, 'MASTER']
+        'INSERT INTO users (login, password, role) VALUES (?, ?, ?)',
+        [login, password, 'MASTER']
     );
 
     const [masterResult] = await connection.execute(
-      'INSERT INTO master_details (user_id, first_name, last_name, rate_of_salary, work_experience, brief_information, working_hours, photo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        userResult.insertId,
-        first_name,
-        last_name,
-        rate_of_salary || 0,
-        work_experience || 0,
-        brief_information || null,
-        working_hours || '09:00-18:00',
-        photo || null
-      ]
+        'INSERT INTO master_details (user_id, first_name, last_name, rate_of_salary, work_experience, brief_information, working_hours, photo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          userResult.insertId,
+          first_name,
+          last_name,
+          rate_of_salary || 0,
+          work_experience || 0,
+          brief_information || null,
+          working_hours || '09:00-18:00',
+          photo || null
+        ]
     );
 
     await connection.end();
@@ -461,9 +445,10 @@ app.post('/masters', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
+
 app.put('/masters/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Доступ запрещён' });
+    return res.status(403).json({ message: 'Access denied' });
   }
 
   const { id } = req.params;
@@ -472,7 +457,6 @@ app.put('/masters/:id', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Обновить информацию о мастере
     const [updateResult] = await connection.execute(
         'UPDATE master_details SET first_name = ?, last_name = ?, rate_of_salary = ?, work_experience = ?, brief_information = ?, photo = ? WHERE user_id = ?',
         [first_name, last_name, rate_of_salary, work_experience, brief_information, photo, id]
@@ -480,19 +464,15 @@ app.put('/masters/:id', authenticateToken, async (req, res) => {
 
     if (updateResult.affectedRows === 0) {
       await connection.end();
-      return res.status(404).json({ message: 'Мастер не найден' });
+      return res.status(404).json({ message: 'Service officer not found' });
     }
 
-    // Обновить список услуг мастера
     if (services && Array.isArray(services)) {
-      // Удалить старые записи из master_services
       await connection.execute('DELETE FROM master_services WHERE master_id = ?', [id]);
 
-      // Извлечь только ID услуг из массива объектов
       const serviceValues = services.map(service => [id, service.id]);
 
       if (serviceValues.length > 0) {
-        // Добавить новые услуги
         await connection.query('INSERT INTO master_services (master_id, service_id) VALUES ?', [serviceValues]);
       }
     }
@@ -539,13 +519,12 @@ app.get('/masters/:id', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Получение информации о мастере
     const [masterRows] = await connection.execute(
-      'SELECT u.id AS user_id, u.login, md.first_name, md.last_name, md.rate_of_salary, md.work_experience, md.brief_information, md.photo ' +
-      'FROM users u ' +
-      'JOIN master_details md ON u.id = md.user_id ' +
-      'WHERE u.id = ? AND u.role = "MASTER"',
-      [id]
+        'SELECT u.id AS user_id, u.login, md.first_name, md.last_name, md.rate_of_salary, md.work_experience, md.brief_information, md.photo ' +
+        'FROM users u ' +
+        'JOIN master_details md ON u.id = md.user_id ' +
+        'WHERE u.id = ? AND u.role = "MASTER"',
+        [id]
     );
 
     if (masterRows.length === 0) {
@@ -553,17 +532,15 @@ app.get('/masters/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Мастер не найден' });
     }
 
-    // Получение списка услуг мастера
     const [serviceRows] = await connection.execute(
-      'SELECT s.id, s.name, s.price, s.description FROM master_services ms ' +
-      'JOIN services s ON ms.service_id = s.id ' +
-      'WHERE ms.master_id = ?',
-      [id]
+        'SELECT s.id, s.name, s.price, s.description FROM master_services ms ' +
+        'JOIN services s ON ms.service_id = s.id ' +
+        'WHERE ms.master_id = ?',
+        [id]
     );
 
     await connection.end();
 
-    // Формирование ответа
     const masterData = {
       ...masterRows[0],
       services: serviceRows,
@@ -583,7 +560,7 @@ app.get('/masters', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [rows] = await connection.execute(
-      'SELECT\n' +
+        'SELECT\n' +
         '    u.id AS user_id,\n' +
         '    u.login,\n' +
         '    md.first_name,\n' +
@@ -609,23 +586,22 @@ app.get('/masters', authenticateToken, async (req, res) => {
     })));
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 app.get('/services/:serviceId/masters', authenticateToken, async (req, res) => {
-  const { serviceId } = req.params; // ID услуги
+  const { serviceId } = req.params;
 
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Запрос для получения мастеров, которые могут оказать выбранную услугу
     const [masters] = await connection.execute(
-        `SELECT m.id, m.login, md.first_name, md.last_name, md.rate_of_salary, md.work_experience 
-      FROM users m
-      JOIN master_details md ON m.id = md.user_id
-      JOIN master_services ms ON m.id = ms.master_id
-      WHERE ms.service_id = ?`,
+        `SELECT m.id, m.login, md.first_name, md.last_name, md.rate_of_salary, md.work_experience
+         FROM users m
+                JOIN master_details md ON m.id = md.user_id
+                JOIN master_services ms ON m.id = ms.master_id
+         WHERE ms.service_id = ?`,
         [serviceId]
     );
 
@@ -660,8 +636,8 @@ app.post('/masters/:id/services', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     await connection.execute(
-      'INSERT INTO master_services (master_id, service_id) VALUES (?, ?)',
-      [id, service_id]
+        'INSERT INTO master_services (master_id, service_id) VALUES (?, ?)',
+        [id, service_id]
     );
 
     await connection.end();
@@ -680,8 +656,8 @@ app.get('/masters/:id/services', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [rows] = await connection.execute(
-      'SELECT s.id, s.name, s.price, s.description FROM master_services ms JOIN services s ON ms.service_id = s.id WHERE ms.master_id = ?',
-      [id]
+        'SELECT s.id, s.name, s.price, s.description FROM master_services ms JOIN services s ON ms.service_id = s.id WHERE ms.master_id = ?',
+        [id]
     );
 
     await connection.end();
@@ -703,8 +679,8 @@ app.delete('/masters/:id/services/:service_id', authenticateToken, async (req, r
     const connection = await mysql.createConnection(dbConfig);
 
     const [result] = await connection.execute(
-      'DELETE FROM master_services WHERE master_id = ? AND service_id = ?',
-      [id, service_id]
+        'DELETE FROM master_services WHERE master_id = ? AND service_id = ?',
+        [id, service_id]
     );
 
     await connection.end();
@@ -732,8 +708,8 @@ app.post('/schedule', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [result] = await connection.execute(
-      'INSERT INTO schedule (service_id, client_id, master_id, start_time, end_time, description) VALUES (?, ?, ?, ?, ?, ?)',
-      [service_id, client_id, master_id, start_time, end_time, description || null]
+        'INSERT INTO schedule (service_id, client_id, master_id, start_time, end_time, description) VALUES (?, ?, ?, ?, ?, ?)',
+        [service_id, client_id, master_id, start_time, end_time, description || null]
     );
 
     await connection.end();
@@ -750,12 +726,12 @@ app.get('/schedule', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [rows] = await connection.execute(
-      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
-      'sv.name AS service_name, u_client.login AS client_name, u_master.login AS master_name ' +
-      'FROM schedule s ' +
-      'JOIN services sv ON s.service_id = sv.id ' +
-      'JOIN users u_client ON s.client_id = u_client.id ' +
-      'JOIN users u_master ON s.master_id = u_master.id'
+        'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+        'sv.name AS service_name, u_client.login AS client_name, u_master.login AS master_name ' +
+        'FROM schedule s ' +
+        'JOIN services sv ON s.service_id = sv.id ' +
+        'JOIN users u_client ON s.client_id = u_client.id ' +
+        'JOIN users u_master ON s.master_id = u_master.id'
     );
 
     await connection.end();
@@ -774,13 +750,13 @@ app.get('/schedule/master/:id', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [rows] = await connection.execute(
-      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
-      'sv.name AS service_name, u_client.login AS client_name ' +
-      'FROM schedule s ' +
-      'JOIN services sv ON s.service_id = sv.id ' +
-      'JOIN users u_client ON s.client_id = u_client.id ' +
-      'WHERE s.master_id = ?',
-      [id]
+        'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+        'sv.name AS service_name, u_client.login AS client_name ' +
+        'FROM schedule s ' +
+        'JOIN services sv ON s.service_id = sv.id ' +
+        'JOIN users u_client ON s.client_id = u_client.id ' +
+        'WHERE s.master_id = ?',
+        [id]
     );
 
     await connection.end();
@@ -800,8 +776,8 @@ app.put('/schedule/:id', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [result] = await connection.execute(
-      'UPDATE schedule SET service_id = ?, client_id = ?, master_id = ?, start_time = ?, end_time = ?, description = ? WHERE id = ?',
-      [service_id, client_id, master_id, start_time, end_time, description || null, id]
+        'UPDATE schedule SET service_id = ?, client_id = ?, master_id = ?, start_time = ?, end_time = ?, description = ? WHERE id = ?',
+        [service_id, client_id, master_id, start_time, end_time, description || null, id]
     );
 
     await connection.end();
@@ -824,8 +800,8 @@ app.delete('/schedule/:id', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [result] = await connection.execute(
-      'DELETE FROM schedule WHERE id = ?',
-      [id]
+        'DELETE FROM schedule WHERE id = ?',
+        [id]
     );
 
     await connection.end();
@@ -848,13 +824,13 @@ app.get('/schedule/client/:id', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [rows] = await connection.execute(
-      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
-      'sv.name AS service_name, u_master.login AS master_name ' +
-      'FROM schedule s ' +
-      'JOIN services sv ON s.service_id = sv.id ' +
-      'JOIN users u_master ON s.master_id = u_master.id ' +
-      'WHERE s.client_id = ?',
-      [id]
+        'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+        'sv.name AS service_name, u_master.login AS master_name ' +
+        'FROM schedule s ' +
+        'JOIN services sv ON s.service_id = sv.id ' +
+        'JOIN users u_master ON s.master_id = u_master.id ' +
+        'WHERE s.client_id = ?',
+        [id]
     );
 
     await connection.end();
@@ -873,13 +849,13 @@ app.get('/schedule/service/:id', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [rows] = await connection.execute(
-      'SELECT s.id, s.start_time, s.end_time, s.description, ' +
-      'u_client.login AS client_name, u_master.login AS master_name ' +
-      'FROM schedule s ' +
-      'JOIN users u_client ON s.client_id = u_client.id ' +
-      'JOIN users u_master ON s.master_id = u_master.id ' +
-      'WHERE s.service_id = ?',
-      [id]
+        'SELECT s.id, s.start_time, s.end_time, s.description, ' +
+        'u_client.login AS client_name, u_master.login AS master_name ' +
+        'FROM schedule s ' +
+        'JOIN users u_client ON s.client_id = u_client.id ' +
+        'JOIN users u_master ON s.master_id = u_master.id ' +
+        'WHERE s.service_id = ?',
+        [id]
     );
 
     await connection.end();
@@ -898,12 +874,11 @@ app.get('/availability2/service/:service_id', authenticateToken, async (req, res
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Получить мастеров, оказывающих заданную услугу
     const [masters] = await connection.execute(
         `SELECT u.id AS master_id, u.login AS master_name
-       FROM master_services ms
-       JOIN users u ON ms.master_id = u.id
-       WHERE ms.service_id = ? AND u.role = "MASTER"`,
+         FROM master_services ms
+                JOIN users u ON ms.master_id = u.id
+         WHERE ms.service_id = ? AND u.role = "MASTER"`,
         [service_id]
     );
 
@@ -914,7 +889,6 @@ app.get('/availability2/service/:service_id', authenticateToken, async (req, res
       return res.status(404).json({ message: 'Мастера с этой услугой не найдены' });
     }
 
-    // Получить расписание мастеров
     const masterIds = masters.map(master => master.master_id);
 
     const [schedule] = await connection.execute(
@@ -931,7 +905,6 @@ app.get('/availability2/service/:service_id', authenticateToken, async (req, res
 
     await connection.end();
 
-    // Преобразуем расписание в удобный формат
     const rebuildSchedule = schedule.map(item => ({
       masterId: item.master_id,
       startTime: new Date(item.start_time),
@@ -940,7 +913,6 @@ app.get('/availability2/service/:service_id', authenticateToken, async (req, res
 
 
 
-    // Функция для поиска пересечений двух временных интервалов
     function findIntersection(interval1, interval2) {
       const latestStart = new Date(Math.max(interval1.startTime, interval2.startTime));
       const earliestEnd = new Date(Math.min(interval1.endTime, interval2.endTime));
@@ -950,10 +922,8 @@ app.get('/availability2/service/:service_id', authenticateToken, async (req, res
       return null;
     }
 
-    // Получаем уникальные master_id
     const uniqueMasterIds = [...new Set(rebuildSchedule.map(item => item.masterId))];
 
-    // Строим график пересечений
     let intersectionSchedule = rebuildSchedule.filter(item => item.masterId === uniqueMasterIds[0]);
 
     for (let i = 1; i < uniqueMasterIds.length; i++) {
@@ -972,14 +942,12 @@ app.get('/availability2/service/:service_id', authenticateToken, async (req, res
       intersectionSchedule = newIntersections;
     }
 
-    // Формируем события для отдачи клиенту
     const events = intersectionSchedule.map(slot => ({
       start_time: slot.startTime.toISOString(),
       end_time: slot.endTime.toISOString(),
       description: 'недоступно'
     }));
 
-    // Отправляем результат
     res.status(200).json({
       service_id,
       events
@@ -1000,13 +968,12 @@ app.get('/availability/service/:service_id', authenticateToken, async (req, res)
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Получить мастеров, оказывающих заданную услугу
     const [masters] = await connection.execute(
-      'SELECT u.id AS master_id, u.login AS master_name ' +
-      'FROM master_services ms ' +
-      'JOIN users u ON ms.master_id = u.id ' +
-      'WHERE ms.service_id = ? AND u.role = "MASTER"',
-      [service_id]
+        'SELECT u.id AS master_id, u.login AS master_name ' +
+        'FROM master_services ms ' +
+        'JOIN users u ON ms.master_id = u.id ' +
+        'WHERE ms.service_id = ? AND u.role = "MASTER"',
+        [service_id]
     );
 
     if (masters.length === 0) {
@@ -1020,25 +987,22 @@ app.get('/availability/service/:service_id', authenticateToken, async (req, res)
 
     switch (range) {
       case 'day':
-        // Фильтруем по конкретному дню
         dateFilter = `AND s.start_time >= '${startDate.toISOString().split('T')[0]}T00:00:00' 
                       AND s.end_time <= '${startDate.toISOString().split('T')[0]}T23:59:59'`;
         break;
 
       case 'week':
-        // Определяем понедельник текущей недели
         const startOfWeek = new Date(startDate);
-        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Понедельник
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1);
         startDate = startOfWeek;
         const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6); // Воскресенье
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
         endDate = endOfWeek;
         dateFilter = `AND s.start_time >= '${startOfWeek.toISOString().split('T')[0]}T00:00:00' 
                       AND s.end_time <= '${endOfWeek.toISOString().split('T')[0]}T23:59:59'`;
         break;
 
       case 'month':
-        // Получаем первый и последний день месяца
         const startOfMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
         const endOfMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
 
@@ -1053,67 +1017,56 @@ app.get('/availability/service/:service_id', authenticateToken, async (req, res)
         return res.status(400).json({ message: 'Invalid range parameter' });
     }
 
-    // Получить расписание для данной услуги с учетом фильтрации по диапазону времени
     const [schedule] = await connection.execute(
-      `SELECT s.master_id, s.start_time, s.end_time, s.description 
-       FROM schedule s
-       JOIN master_services ms ON s.master_id = ms.master_id
-       WHERE ms.service_id = ? ${dateFilter}`,
-      [service_id]
+        `SELECT s.master_id, s.start_time, s.end_time, s.description
+         FROM schedule s
+                JOIN master_services ms ON s.master_id = ms.master_id
+         WHERE ms.service_id = ? ${dateFilter}`,
+        [service_id]
     );
 
     await connection.end();
 
-    // 1. Чистое расписание
     const scheduleDetails = schedule.map(slot => ({
       start_time: slot.start_time,
       end_time: slot.end_time,
       description: slot.description
     }));
 
-    // 2. Список мастеров
     const masterDetails = masters.map(master => ({
       master_id: master.master_id,
       master_name: master.master_name
     }));
 
-    // 3. Формируем слоты по датам и часам (значение - 0 мастеров пока)
     const slots = {};
 
-    // Функция для создания слотов на заданный диапазон
     const createSlotsForDateRange = (startDate, endDate) => {
       const resultSlots = {};
       let currentDate = new Date(startDate);
 
-      // Перебираем все дни в диапазоне
       while (currentDate <= endDate) {
         const dateKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
         resultSlots[dateKey] = {};
 
-        // Создаем часовые слоты с 9:00 до 21:00
         for (let hour = 9; hour <= 21; hour++) {
           const hourKey = `${String(hour).padStart(2, '0')}:00`;
-          resultSlots[dateKey][hourKey] = 0; // Пока мастеров 0
+          resultSlots[dateKey][hourKey] = 0;
         }
 
-        // Переходим к следующему дню
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
       return resultSlots;
     };
 
-    // Создаем слоты для запрашиваемого диапазона
     const timeslots = createSlotsForDateRange(startDate, endDate);
 
-    // 4. Обновляем слоты, заполняем количество занятых мастеров
-    // Для каждого слота проверяем, сколько мастеров заняты на этом времени
     schedule.forEach(slot => {
       const dateKey = new Date(slot.start_time).toISOString().split('T')[0];
       const hourKey = new Date(slot.start_time).getHours() + ":00";
 
       if (timeslots[dateKey] && timeslots[dateKey][hourKey] !== undefined) {
-        timeslots[dateKey][hourKey] += 1; // Увеличиваем количество занятых мастеров для этого времени
+        timeslots[dateKey][hourKey] += 1;
       }
     });
 
@@ -1136,13 +1089,12 @@ app.get('/availability/slot/:service_id', authenticateToken, async (req, res) =>
   try {
     const connection = await mysql.createConnection(dbConfig);
 
-    // Получить мастеров, оказывающих заданную услугу
     const [masters] = await connection.execute(
-      'SELECT u.id AS master_id, u.login AS master_name ' +
-      'FROM master_services ms ' +
-      'JOIN users u ON ms.master_id = u.id ' +
-      'WHERE ms.service_id = ? AND u.role = "MASTER"',
-      [service_id]
+        'SELECT u.id AS master_id, u.login AS master_name ' +
+        'FROM master_services ms ' +
+        'JOIN users u ON ms.master_id = u.id ' +
+        'WHERE ms.service_id = ? AND u.role = "MASTER"',
+        [service_id]
     );
 
     if (masters.length === 0) {
@@ -1150,41 +1102,33 @@ app.get('/availability/slot/:service_id', authenticateToken, async (req, res) =>
       return res.status(404).json({ message: 'Мастера с этой услугой не найдены' });
     }
 
-    // Убедимся, что hour в формате "09:00"
     if (!hour.includes(':')) {
-      hour = `${String(hour).padStart(2, '0')}:00`;  // Если передан только час (например, "9"), добавляем ":00" и приводим к формату "09"
+      hour = `${String(hour).padStart(2, '0')}:00`;
     }
 
 
-    // Проверяем корректность даты и часа
     const startTime = new Date(`${date} ${hour}:00:00`);
 
     if (isNaN(startTime)) {
       return res.status(400).json({ message: 'Неверный формат даты или времени' });
     }
 
-    // Создаем время окончания (через 1 час)
     const endTime = new Date(startTime);
-    endTime.setHours(startTime.getHours() + 1); // Интервал 1 час
+    endTime.setHours(startTime.getHours() + 1);
 
-    // Получить расписание для мастеров на этот интервал времени
     const [schedule] = await connection.execute(
-      `SELECT s.master_id, s.start_time, s.end_time 
-       FROM schedule s
-       WHERE s.start_time < ? AND s.end_time > ?`,
-      [endTime.toISOString(), startTime.toISOString()]
+        `SELECT s.master_id, s.start_time, s.end_time
+         FROM schedule s
+         WHERE s.start_time < ? AND s.end_time > ?`,
+        [endTime.toISOString(), startTime.toISOString()]
     );
 
-    // Закрываем соединение
     await connection.end();
 
-    // Мастера, которые заняты на этот слот
     const unavailableMasters = new Set(schedule.map(s => s.master_id));
 
-    // Отбираем только доступных мастеров
     const availableMasters = masters.filter(master => !unavailableMasters.has(master.master_id));
 
-    // Возвращаем список доступных мастеров
     res.status(200).json({
       service_id,
       date,
@@ -1235,8 +1179,8 @@ app.post('/salon/settings', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     await connection.execute(
-      'INSERT INTO salon_settings (phone, email, open_time, close_time) VALUES (?, ?, ?, ?)',
-      [phone, email, open_time, close_time]
+        'INSERT INTO salon_settings (phone, email, open_time, close_time) VALUES (?, ?, ?, ?)',
+        [phone, email, open_time, close_time]
     );
 
     await connection.end();
@@ -1271,45 +1215,47 @@ app.delete('/salon/settings', authenticateToken, async (req, res) => {
   }
 });
 
-// Эндпоинт с проверкой токена
+
 app.get("/service-processes", authenticateToken, async (req, res) => {
-  // Проверяем роль пользователя
   if (req.user.role !== "ADMIN" && req.user.role !== "MANAGER") {
-    return res.status(403).json({ message: "Доступ запрещён" });
+    return res.status(403).json({ message: "Access denied" });
   }
 
   const connection = await mysql.createConnection(dbConfig);
 
   try {
-    // Текущая дата
-    const today = new Date().toISOString().split("T")[0];
 
-    // SQL-запрос для получения данных
     const query = `
-      SELECT sp.id,
-             c.first_name AS client_first_name,
-             c.last_name AS client_last_name,
-             c.photo                                AS client_photo,
-             m.first_name AS master_first_name,
-             m.last_name AS master_last_name,
-             m.photo                                AS master_photo,
-             s.name                                 AS service_name,
-             s.price                                AS service_price,
-             s.photo                                AS service_photo,
-             sp.start_time,
-             sp.end_time,
-             sp.status
-      FROM service_process sp
-             LEFT JOIN schedule sc on sp.schedule_id = sc.id
-             LEFT JOIN users c ON sc.client_id = c.id
-             LEFT JOIN master_details m ON sc.master_id = m.user_id
-             LEFT JOIN services s ON sp.service_id = s.id
-      WHERE DATE(sp.start_time) = ? 
-        AND sp.status != 'PAID' 
-        AND sp.status != 'CANCELLED'
+      SELECT
+        sp.id,
+        c.first_name AS client_first_name,
+        c.last_name AS client_last_name,
+        c.photo AS client_photo,
+        m.first_name AS master_first_name,
+        m.last_name AS master_last_name,
+        m.photo AS master_photo,
+        s.name AS service_name,
+        s.price AS service_price,
+        s.photo AS service_photo,
+        sp.start_time,
+        sp.end_time,
+        sp.status
+      FROM
+        service_process sp
+          LEFT JOIN
+        schedule sc ON sp.schedule_id = sc.id
+          LEFT JOIN
+        users c ON sc.client_id = c.id
+          LEFT JOIN
+        master_details m ON sc.master_id = m.user_id
+          LEFT JOIN
+        services s ON sp.service_id = s.id
+      WHERE
+        sp.start_time BETWEEN DATE_SUB(NOW(), INTERVAL 3 DAY) AND NOW()
+
     `;
 
-    const [rows] = await connection.execute(query, [today]);
+    const [rows] = await connection.execute(query);
 
     res.status(200).json(rows);
   } catch (error) {
@@ -1335,38 +1281,34 @@ app.put('/salon/settings', authenticateToken, async (req, res) => {
     const connection = await mysql.createConnection(dbConfig);
 
     const [result] = await connection.execute(
-      'UPDATE salon_settings SET phone = ?, email = ?, open_time = ?, close_time = ? WHERE id = 1',
-      [phone, email, open_time, close_time]
+        'UPDATE salon_settings SET phone = ?, email = ?, open_time = ?, close_time = ? WHERE id = 1',
+        [phone, email, open_time, close_time]
     );
 
     await connection.end();
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Настройки салона не найдены' });
+      return res.status(404).json({ message: 'Salon settings are not found' });
     }
 
-    res.status(200).json({ message: 'Настройки салона обновлены' });
+    res.status(200).json({ message: 'Salon setting have been updated' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 
-// Точка доступа для получения истории клиента
 app.get('/history/client/:clientid', authenticateToken, async (req, res) => {
   const { clientid } = req.params;
 
-  // Проверка прав доступа (если пользователь не является администратором, то может смотреть только свою историю)
   if (req.user.id !== parseInt(clientid) && req.user.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Доступ запрещён' });
+    return res.status(403).json({ message: 'Access denied' });
   }
 
   try {
-    // Подключаемся к базе данных
     const connection = await mysql.createConnection(dbConfig);
 
-    // SQL-запрос для получения истории клиента
     const [rows] = await connection.execute(
         `
           SELECT distinct sp.id,
@@ -1387,30 +1329,166 @@ app.get('/history/client/:clientid', authenticateToken, async (req, res) => {
           ORDER BY sp.start_time
               DESC;
           ;
-      `,
+        `,
         [clientid]
     );
 
     await connection.end();
 
-    // Если записи не найдены, возвращаем ошибку
     if (rows.length === 0) {
-      return res.status(404).json({ message: 'История для данного клиента не найдена.' });
+      return res.status(404).json({ message: 'History of the client not found' });
     }
 
-    // Возвращаем найденную историю клиента
     res.status(200).json({
       client_id: clientid,
       history: rows
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/revenue-by-day', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT\n' +
+        '    DATE(sc.start_time) AS date,\n' +
+        '    SUM(se.price) AS total_revenue\n' +
+        'FROM schedule sc\n' +
+        '         INNER JOIN services se ON sc.service_id = se.id\n' +
+        'WHERE sc.start_time BETWEEN\n' +
+        '          DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, \'%Y-%m-01\')\n' +
+        '          AND LAST_DAY(CURRENT_DATE - INTERVAL 1 MONTH)\n' +
+        'GROUP BY DATE(sc.start_time)\n' +
+        'ORDER BY DATE(sc.start_time)');
+
+    await connection.end();
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Data for the month is absent' });
+    }
+
+    res.status(200).json(rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/revenue-by-master', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT\n' +
+        '    DATE_FORMAT(sc.start_time, \'%Y-%m\') AS month,\n' +
+        '    u.id as master_id,\n' +
+        '    CONCAT(md.first_name, CONCAT(\' \', md.last_name)) as master_name,\n' +
+        '    SUM(se.price) AS total_revenue\n' +
+        'FROM schedule sc\n' +
+        '         INNER JOIN services se ON sc.service_id = se.id\n' +
+        '         INNER JOIN users u on sc.master_id = u.id\n' +
+        '         INNER JOIN master_details md on u.id = md.user_id\n' +
+        'WHERE sc.start_time BETWEEN\n' +
+        '          DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, \'%Y-%m-01\')\n' +
+        '          AND LAST_DAY(CURRENT_DATE - INTERVAL 1 MONTH)\n' +
+        'GROUP BY DATE_FORMAT(sc.start_time, \'%Y-%m\'), u.id, CONCAT(md.first_name, CONCAT(\' \', md.last_name))\n' +
+        'ORDER BY u.id;\n');
+
+    await connection.end();
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Data for the month is absent' });
+    }
+
+    res.status(200).json(rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/revenue-by-service', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT\n' +
+        '    DATE_FORMAT(sc.start_time, \'%Y-%m\') AS month,\n' +
+        '    se.id as service_id,\n' +
+        '    se.name as service_name,\n' +
+        '    SUM(se.price) AS total_revenue\n' +
+        'FROM schedule sc\n' +
+        '         INNER JOIN services se ON sc.service_id = se.id\n' +
+        '         INNER JOIN users u on sc.master_id = u.id\n' +
+        '         INNER JOIN master_details md on u.id = md.user_id\n' +
+        'WHERE sc.start_time BETWEEN\n' +
+        '          DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, \'%Y-%m-01\')\n' +
+        '          AND LAST_DAY(CURRENT_DATE - INTERVAL 1 MONTH)\n' +
+        'GROUP BY DATE_FORMAT(sc.start_time, \'%Y-%m\'), se.id, se.name\n' +
+        'ORDER BY se.id;');
+
+    await connection.end();
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Data for the month is absent' });
+    }
+
+    res.status(200).json(rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 
-// Старт сервера
+app.get('/revenue-by-client', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT\n' +
+        '    DATE_FORMAT(sc.start_time, \'%Y-%m\') AS month,\n' +
+        '    sc.client_id as client_id,\n' +
+        '    concat(u.first_name, concat(\' \', u.last_name)) as client_name,\n' +
+        '    SUM(se.price) AS amount\n' +
+        'FROM schedule sc\n' +
+        '         INNER JOIN services se ON sc.service_id = se.id\n' +
+        '         INNER JOIN users u on sc.client_id = u.id\n' +
+        'WHERE sc.start_time BETWEEN\n' +
+        '          DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, \'%Y-%m-01\')\n' +
+        '          AND LAST_DAY(CURRENT_DATE - INTERVAL 1 MONTH)\n' +
+        'GROUP BY DATE_FORMAT(sc.start_time, \'%Y-%m\'), sc.client_id,  concat(u.first_name, concat(\' \', u.last_name))\n' +
+        'ORDER BY sc.client_id;\n');
+
+    await connection.end();
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Data for the month is absent' });
+    }
+
+    res.status(200).json(rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });

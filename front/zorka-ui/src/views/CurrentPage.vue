@@ -1,7 +1,7 @@
 <template>
   <v-container>
     <h1>Procedures Today</h1>
-    <v-data-table :headers="headers" :items="procedures" item-key="id" class="elevation-1">
+    <v-data-table :headers="headers" :items="sortedProcedures" item-key="id" class="elevation-1">
       <template v-slot:top>
         <v-toolbar flat>
           <v-toolbar-title>Procedures Today</v-toolbar-title>
@@ -99,7 +99,15 @@ export default {
         { text: 'Status', value: 'status' },
       ],
       procedures: [],
+      statusOrder: ['COMPLETED', 'WAITING', 'PROCESSING', 'EXPECTED', 'CANCELLED', 'PAID'],
     };
+  },
+  computed: {
+    sortedProcedures() {
+      return this.procedures.slice().sort((a, b) => {
+        return this.statusOrder.indexOf(a.status) - this.statusOrder.indexOf(b.status);
+      });
+    },
   },
   created() {
     this.fetchProcedures();
@@ -115,7 +123,7 @@ export default {
         }
         const response = await axios.get('http://localhost:3000/service-processes', {
           headers: {
-            Authorization: `${token}`, // Убедись, что перед токеном
+            Authorization: `${token}`,
           },
         });
         this.procedures = response.data.map((item) => ({
@@ -137,13 +145,12 @@ export default {
         }
 
         await axios.patch(`http://localhost:3000/service-process/${item.id}`, {
-          status: item.status,  // Отправляем новый статус
+          status: item.status,
         }, {
           headers: {
-            Authorization: `${token}`, // Убедись, что перед токеном
+            Authorization: `${token}`,
           },
         });
-
 
       } catch (error) {
         console.error('Error updating status:', error);

@@ -72,18 +72,15 @@ export default {
   methods: {
     async submitForm() {
       try {
-        // Отправка данных на сервер
         const response = await axios.post("http://localhost:3000/register", {
-          login: this.email,  // Здесь используется email как login
+          login: this.email,
           password: this.password,
           repeat_password: this.confirmPassword,
         });
 
-        // Обработка успешного ответа
         console.log("User registered successfully:", response.data);
-        await this.$router.push("/login"); // Перенаправление на страницу входа
+        await this.$router.push("/login");
       } catch (error) {
-        // Обработка ошибок
         console.error("Error registering user:", error.response ? error.response.data : error.message);
         alert("Registration failed: " + (error.response ? error.response.data.message : error.message));
       }
@@ -93,7 +90,6 @@ export default {
 </script>
 
 <style scoped>
-/* Стили для страницы регистрации */
 .v-card {
   max-width: 400px;
   margin: auto;

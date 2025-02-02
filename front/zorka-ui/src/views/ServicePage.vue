@@ -8,7 +8,6 @@
           </v-card-title>
 
           <v-card-text>
-            <!-- Форма для редактирования или создания услуги -->
             <v-form ref="serviceForm" v-model="formValid" lazy-validation>
               <v-text-field
                   v-model="service.name"
@@ -46,7 +45,6 @@
                   :disabled="!isEditing"
               ></v-file-input>
 
-              <!-- Кнопки для редактирования и сохранения -->
               <v-btn
                   v-if="isEditing"
                   color="primary"
@@ -67,7 +65,6 @@
               >Cancel</v-btn>
             </v-form>
 
-            <!-- Если это не редактирование, показываем текущие данные услуги -->
             <v-divider v-if="!isEditing"></v-divider>
             <v-row v-if="!isEditing">
               <v-col cols="12" sm="6">
@@ -85,7 +82,6 @@
               </v-col>
             </v-row>
 
-            <!-- Ошибка при запросах -->
             <v-alert v-if="error" type="error" dismissible>
               {{ error }}
             </v-alert>
@@ -146,18 +142,15 @@ export default {
       }
     },
 
-    // Метод для включения режима редактирования
     editService() {
       this.isEditing = true;
     },
 
-    // Метод для отмены редактирования
     cancelEditing() {
       this.isEditing = false;
-      this.loadService(); // Сбросить изменения
+      this.loadService();
     },
 
-    // Метод для сохранения изменений
     async saveService() {
       try {
         const serviceId = this.service.id;
@@ -166,14 +159,12 @@ export default {
         const token = this.$store.getters.token || localStorage.getItem("token");
 
         if (serviceId) {
-          // Если у услуги есть ID, используем PUT для обновления
           response = await axios.put(`http://localhost:3000/services/${serviceId}`, this.service, {
             headers: {
               Authorization: `${token}`,
             },
           });
         } else {
-          // Если у услуги нет ID, используем POST для создания
           response = await axios.post("http://localhost:3000/services", this.service, {
             headers: {
               Authorization: `${token}`,
@@ -181,7 +172,6 @@ export default {
           });
         }
 
-        // После успешного сохранения, обновляем данные и переключаем в режим просмотра
         this.service = response.data;
         this.isEditing = false;
       } catch (error) {
@@ -194,5 +184,4 @@ export default {
 </script>
 
 <style scoped>
-/* Дополнительные стили */
 </style>

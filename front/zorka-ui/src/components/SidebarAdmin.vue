@@ -39,15 +39,14 @@ export default {
   name: "SidebarAdmin",
   computed: {
     isAdmin() {
-      const role = this.$store.getters.userRole; // Получаем роль пользователя из Vuex
-      return role === 'ADMIN'; // Показываем Sidebar только если роль 'ADMIN'
+      const role = this.$store.getters.userRole;
+      return role === 'ADMIN';
     },
   },
   methods: {
     goToPage(page) {
-      // Переход на страницы админской панели
       if (this.$route.path !== page) {
-        this.$router.push(page); // Выполняем переход, если мы не на этой странице
+        this.$router.push(page);
       }
     },
   },

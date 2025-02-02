@@ -1,7 +1,6 @@
 ﻿<template>
   <div class="demo-app">
     <div class="demo-app-sidebar">
-      <!-- Секция с выпадающим списком услуг -->
       <div class="demo-app-sidebar-section">
         <h2>Select a Service</h2>
         <v-select
@@ -16,7 +15,6 @@
         />
       </div>
 
-      <!-- Секция с выпадающим списком мастеров -->
       <div class="demo-app-sidebar-section" v-if="masters.length > 0">
         <h2>Select a Master</h2>
         <v-select
@@ -31,7 +29,6 @@
         />
       </div>
 
-      <!-- Переключатель weekends -->
       <div class="demo-app-sidebar-section">
         <v-checkbox
             v-model="calendarOptions.weekends"
@@ -40,7 +37,6 @@
         />
       </div>
 
-      <!-- Кнопка для переключения видимости событий -->
       <div class="demo-app-sidebar-section">
         <v-btn
             @click="toggleEventsVisibility"
@@ -51,7 +47,6 @@
         </v-btn>
       </div>
 
-      <!-- Список событий (скрываемый) -->
       <div class="demo-app-sidebar-section" v-if="showEvents">
         <h2>All Events ({{ currentEvents.length }})</h2>
         <ul class="event-list">
@@ -93,13 +88,13 @@ export default {
     return {
       selectedService: null,
       selectedMaster: null,
-      services: [], // массив для хранения данных об услугах
-      masters: [], // массив для мастеров выбранной услуги
+      services: [],
+      masters: [],
       calendarOptions: {
         plugins: [
           dayGridPlugin,
           timeGridPlugin,
-          interactionPlugin, // needed for dateClick
+          interactionPlugin,
         ],
         headerToolbar: {
           left: 'prev,next today',
@@ -107,7 +102,7 @@ export default {
           right: 'dayGridMonth,timeGridWeek,timeGridDay',
         },
         initialView: 'dayGridMonth',
-        initialEvents: [], // initially empty, will be populated dynamically
+        initialEvents: [],
         editable: true,
         selectable: true,
         selectMirror: true,
@@ -119,7 +114,7 @@ export default {
         events: []
       },
       currentEvents: [],
-      showEvents: false, // состояние видимости секции событий
+      showEvents: false,
     };
   },
   created() {
@@ -157,17 +152,15 @@ export default {
         return;
       }
 
-      // Получаем название выбранной услуги и мастера
       const selectedServiceName = this.services.find(service => service.id === this.selectedService)?.name;
       const selectedMasterName = this.masters.find(master => master.id === this.selectedMaster)?.fullName;
 
-      // Подтверждение регистрации
       const confirmationMessage = `You are about to register for the service: ${selectedServiceName} with master: ${selectedMasterName}. Confirm?`;
 
       if (confirm(confirmationMessage)) {
         const newEvent = {
           service_id: this.selectedService,
-          client_id: this.$store.getters.userId, // пример получения id клиента из Vuex
+          client_id: this.$store.getters.userId,
           master_id: this.selectedMaster,
           start_time: selectInfo.startStr,
           end_time: selectInfo.endStr,
@@ -184,7 +177,7 @@ export default {
               calendarApi.unselect();
               calendarApi.addEvent({
                 id: createEventId(),
-                title: selectedServiceName, // Используем название услуги как заголовок события
+                title: selectedServiceName,
                 start: selectInfo.startStr,
                 end: selectInfo.endStr,
                 allDay: selectInfo.allDay,
@@ -253,7 +246,6 @@ export default {
               allDay: false,
             }));
 
-            // Объединяем события мастера с текущими событиями
             this.calendarOptions.events = [
               ...this.calendarOptions.events,
               ...masterEvents
@@ -264,7 +256,6 @@ export default {
           });
     },
 
-    // Переключение видимости секции событий
     toggleEventsVisibility() {
       this.showEvents = !this.showEvents;
     },
@@ -341,7 +332,6 @@ export default {
   margin: 0 auto;
 }
 
-/* Стили для FullCalendar */
 .fc-header-toolbar {
   margin-bottom: 1em;
 }

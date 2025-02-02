@@ -1,5 +1,4 @@
 ﻿<template>
-  <!-- Показываем Sidebar только если роль 'CLIENT' и текущий маршрут соответствует одному из указанных -->
   <v-navigation-drawer app v-if="isClient">
     <v-list>
       <v-list-item @click="goToPage('/profile')">
@@ -27,25 +26,22 @@
 export default {
   name: "SidebarClient",
   computed: {
-    // Проверка роли из Vuex (показываем Sidebar только если роль 'CLIENT')
     isClient() {
-      const role = this.$store.getters.userRole; // Получаем роль пользователя из Vuex
-      console.log("Current role from Vuex:", role); // Логируем роль для проверки
-      return role === 'CLIENT'; // Показываем Sidebar только если роль 'CLIENT'
+      const role = this.$store.getters.userRole;
+      console.log("Current role from Vuex:", role);
+      return role === 'CLIENT';
     },
-    // Проверка текущего пути для отображения Sidebar только на нужных страницах
     showSidebar() {
-      const currentPath = this.$route.path; // Получаем текущий путь
-      console.log("Current route path:", currentPath); // Логируем путь маршрута
+      const currentPath = this.$route.path;
+      console.log("Current route path:", currentPath);
       return ['/profile', '/history', '/book-service'].includes(currentPath);
     },
   },
   methods: {
     goToPage(page) {
-      console.log("Navigating to:", page); // Логируем, на какую страницу пытаемся перейти
-      // Проверка, не находимся ли мы уже на этой странице
+      console.log("Navigating to:", page);
       if (this.$route.path !== page) {
-        this.$router.push(page); // Если не на текущей странице, выполняем переход
+        this.$router.push(page);
       }
     },
   },

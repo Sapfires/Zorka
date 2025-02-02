@@ -206,3 +206,31 @@ CREATE EVENT AddExpectedServiceProcessesEvent
     ON SCHEDULE EVERY 1 MINUTE
     DO
     CALL AddExpectedServiceProcesses();
+
+DROP TABLE service_process;
+
+create table test1.service_process
+(
+    id          int auto_increment
+        primary key,
+    service_id  int                                                                          not null,
+    status      enum ('WAITING', 'PROCESSING', 'COMPLETED', 'CANCELLED', 'PAID', 'EXPECTED') not null,
+    start_time  datetime                                                                     null,
+    duration    int                                                                          null,
+    end_time    datetime                                                                     null,
+    schedule_id int                                                                          null,
+    constraint service_process_fk_schedule
+        foreign key (schedule_id) references test1.schedule (id)
+
+            on delete set null,
+    constraint service_process_ibfk_1
+        foreign key (service_id) references test1.services (id)
+
+            on delete cascade,
+    constraint service_process_status_check
+        check (`status` in ('WAITING','PROCESSING','COMPLETED','CANCELLED','PAID','EXPECTED'))
+)
+    auto_increment = 9;
+
+create index service_id
+    on test1.service_process (service_id);

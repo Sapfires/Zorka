@@ -15,10 +15,8 @@
           required
       ></v-text-field>
 
-      <!-- Кнопка для входа -->
       <v-btn :disabled="!valid" @click="login">Login</v-btn>
 
-      <!-- Кнопка для перехода на страницу регистрации -->
       <v-btn text @click="goToRegistration">Don't have an account? Register</v-btn>
     </v-form>
   </v-container>
@@ -26,7 +24,7 @@
 
 <script>
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode'; // Импортируем библиотеку для декодирования JWT
+import { jwtDecode } from 'jwt-decode';
 
 export default {
   data() {
@@ -34,7 +32,6 @@ export default {
       valid: false,
       email: '',
       password: '',
-      // Массив с функциями валидации
       emailRules: [
         v => !!v || 'Email is required',
         v => /.+@.+\..+/.test(v) || 'Email must be valid',
@@ -52,54 +49,43 @@ export default {
         password: this.password,
       };
 
-      // Отправка POST-запроса на логин
       axios.post('http://localhost:3000/login', loginData)
           .then((response) => {
-            // Токен приходит в ответе, например, "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             const token = response.data.token;
-            console.log("Received token:", token); // Логируем полученный токен
+            console.log("Received token:", token);
 
-            // Декодируем токен для извлечения данных
             const decodedToken = jwtDecode(token);
-            console.log("Decoded token:", decodedToken); // Логируем декодированный токен
+            console.log("Decoded token:", decodedToken);
 
-            // Извлекаем роль и ID пользователя из декодированного токена
-            const role = decodedToken.role; // Предполагаем, что роль хранится в поле 'role'
-            const userId = decodedToken.id; // Предполагаем, что ID хранится в поле 'id'
+            const role = decodedToken.role;
+            const userId = decodedToken.id;
 
-            // Логируем роль и ID
             console.log("Role from decoded token:", role);
             console.log("User ID from decoded token:", userId);
 
-            // Сохраняем токен и роль в Vuex
             this.$store.dispatch('setToken', token);
             console.log("Saving token in Vuex:", token);
 
-            this.$store.dispatch('setRole', role.toUpperCase()); // Сохраняем роль в верхнем регистре
-            console.log("Saving role in Vuex:", role.toUpperCase()); // Логируем роль, которая сохраняется
+            this.$store.dispatch('setRole', role.toUpperCase());
+            console.log("Saving role in Vuex:", role.toUpperCase());
 
-            // Сохраняем ID, если оно нужно
             this.$store.dispatch('setUserId', userId);
             console.log("Saving user ID in Vuex:", userId);
 
-            // Редирект в зависимости от роли
             if (role === 'CLIENT') {
               this.$router.push('/profile');
             } else if (role === 'ADMIN') {
               this.$router.push('/admin/clients');
             } else {
-              // Если роль не известна, можно перенаправить на главную страницу
               this.$router.push('/');
             }
           })
           .catch((error) => {
             console.error('Login failed:', error);
-            // Обработать ошибку (например, показать сообщение об ошибке)
           });
     },
 
     goToRegistration() {
-      // Переход на страницу регистрации
       this.$router.push('/register');
     },
   },

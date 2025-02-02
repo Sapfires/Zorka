@@ -16,7 +16,6 @@
                   class="elevation-1"
                   hide-default-footer
               >
-                <!-- Слот для каждой строки таблицы -->
                 <template v-slot:item="props">
                   <tr>
                     <td>
@@ -32,7 +31,6 @@
                     <td>{{ props.item.login }}</td>
                     <td>{{ props.item.phone_number || 'No phone number' }}</td>
                     <td>
-                      <!-- Кнопка с иконкой для блокировки/разблокировки пользователя -->
                       <v-btn
                           color="primary"
                           @click="toggleBlockStatus(props.item.id, props.item.blocked)"
@@ -69,13 +67,13 @@ export default {
         {text: "Photo", align: "start", key: "photo"},
         {text: "Login", align: "start", key: "login", sortable: true},
         {text: "Phone Number", align: "start", key: "phone_number"},
-        {text: "Actions", align: "center", key: "actions"}, // Колонка для действий
+        {text: "Actions", align: "center", key: "actions"},
       ],
       error: "",
     };
   },
   created() {
-    this.loadClients(); // Загружаем клиентов при создании компонента
+    this.loadClients();
   },
   methods: {
     async loadClients() {
@@ -89,7 +87,7 @@ export default {
 
         const response = await axios.get("http://localhost:3000/users", {
           headers: {
-            Authorization: `${token}`, // Убедись, что перед токеном
+            Authorization: `${token}`,
           },
         });
 
@@ -100,25 +98,23 @@ export default {
       }
     },
 
-    // Метод для блокировки/разблокировки пользователя
     async toggleBlockStatus(clientId, currentBlockedStatus) {
       try {
         const token = this.$store.getters.token || localStorage.getItem("token");
 
         if (!token) {
-          this.$router.push("/login");
+          await this.$router.push("/login");
           return;
         }
 
         await axios.put(`http://localhost:3000/users/lock/${clientId}`, {
-          blocked: !currentBlockedStatus, // Переключаем статус блокировки
+          blocked: !currentBlockedStatus,
         }, {
           headers: {
             Authorization: `${token}`,
           },
         });
 
-        // Обновляем статус блокировки в списке клиентов
         this.clients = this.clients.map(client =>
             client.id === clientId ? {...client, blocked: !currentBlockedStatus} : client
         );
@@ -133,11 +129,10 @@ export default {
 
 <style scoped>
 .clients-list {
-  max-height: 70vh; /* Ограничиваем максимальную высоту для списка */
-  overflow-y: auto; /* Добавляем вертикальную прокрутку */
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
-/* Стиль для кнопок */
 .v-btn {
   margin: 0 5px;
 }

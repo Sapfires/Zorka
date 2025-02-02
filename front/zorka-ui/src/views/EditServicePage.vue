@@ -10,26 +10,21 @@
 
           <v-card-text>
             <v-form ref="form" v-model="valid" lazy-validation>
-              <!-- Квадратная область для загрузки изображения -->
               <v-avatar
                   size="120"
                   class="mr-4"
                   :style="imageBase64 ? '' : 'cursor: pointer; background-color: #f0f0f0;'"
                   @click="triggerFileInput"
               >
-                <!-- Обработчик клика -->
-                <!-- Отображаем изображение, если оно есть -->
                 <v-img
                     v-if="imageBase64"
                     :src="imageBase64"
                     alt="Uploaded Image"
                     class="rounded-lg"
                 ></v-img>
-                <!-- Если изображения нет, отображаем иконку -->
                 <v-icon v-else>mdi-camera</v-icon>
               </v-avatar>
 
-              <!-- Скрытый input для выбора файла -->
               <input
                   ref="fileInput"
                   type="file"
@@ -38,7 +33,6 @@
                   @change="handleFileChange"
               />
 
-              <!-- Название сервиса -->
               <v-text-field
                   v-model="serviceData.name"
                   label="Service Name"
@@ -46,7 +40,6 @@
                   required
               ></v-text-field>
 
-              <!-- Описание сервиса -->
               <v-textarea
                   v-model="serviceData.description"
                   label="Service Description"
@@ -54,7 +47,6 @@
                   required
               ></v-textarea>
 
-              <!-- Цена -->
               <v-text-field
                   v-model="serviceData.price"
                   label="Price"
@@ -63,7 +55,6 @@
                   required
               ></v-text-field>
 
-              <!-- Продолжительность услуги -->
               <v-text-field
                   v-model="serviceData.duration"
                   label="Duration (minutes)"
@@ -94,15 +85,15 @@ export default {
   name: "ServiceEditPage",
   data() {
     return {
-      imageBase64: "", // Для хранения Base64 изображения
-      isUploading: false, // Индикатор загрузки
-      error: "", // Сообщения об ошибке
-      valid: false, // Для валидации формы
+      imageBase64: "",
+      isUploading: false,
+      error: "",
+      valid: false,
       serviceData: {
-        name: "", // Название услуги
-        description: "", // Описание
-        price: "", // Цена
-        duration: "", // Продолжительность услуги
+        name: "",
+        description: "",
+        price: "",
+        duration: "",
       },
       nameRules: [
         v => !!v || "Name is required",
@@ -120,17 +111,16 @@ export default {
         v => !!v || "Duration is required",
         v => /^[0-9]+$/.test(v) || "Duration must be a valid number",
       ],
-      serviceId: this.$route.params.id || null, // Получаем ID сервиса из URL
+      serviceId: this.$route.params.id || null,
     };
   },
   created() {
     if(this.serviceId !== null) {
-      this.loadServiceData(); // Загружаем данные при создании компонента
+      this.loadServiceData();
     }
 
   },
   methods: {
-    // Загрузка данных о сервисе
     async loadServiceData() {
       try {
         const token = this.$store.getters.token || localStorage.getItem("token");
@@ -146,10 +136,8 @@ export default {
           },
         });
 
-        // Заполняем данные о сервисе
         this.serviceData = response.data;
 
-        // Если есть изображение, сохраняем его
         this.imageBase64 = response.data.photo;
       } catch (error) {
         console.error("Error fetching service data:", error);
@@ -157,7 +145,6 @@ export default {
       }
     },
 
-    // Сохранение данных сервиса
     async saveService() {
       try {
         this.isUploading = true;
@@ -174,8 +161,8 @@ export default {
           name: this.serviceData.name,
           description: this.serviceData.description,
           price: this.serviceData.price,
-          duration: this.serviceData.duration, // Добавляем поле продолжительности
-          photo: this.imageBase64, // Отправляем картинку в формате Base64
+          duration: this.serviceData.duration,
+          photo: this.imageBase64,
         };
         let response = {};
         if(this.serviceId !== null) {
@@ -200,10 +187,9 @@ export default {
           );
         }
 
-        // После сохранения обновляем загруженное изображение
         this.imageBase64 = response.data.photo;
         this.isUploading = false;
-        await this.$router.push("/admin/services"); // Перенаправляем на страницу мастеров
+        await this.$router.push("/admin/services");
       } catch (error) {
         console.error("Error saving service:", error);
         this.error = "Failed to save service. Please try again later.";
@@ -211,12 +197,10 @@ export default {
       }
     },
 
-    // Обработчик клика для активации выбора файла
     triggerFileInput() {
-      this.$refs.fileInput.click(); // Открываем окно выбора файла
+      this.$refs.fileInput.click();
     },
 
-    // Обработчик изменения файла
     handleFileChange(event) {
       const file = event.target.files[0];
 
@@ -224,10 +208,10 @@ export default {
         const reader = new FileReader();
 
         reader.onload = () => {
-          this.imageBase64 = reader.result; // Сохраняем изображение в формате Base64
+          this.imageBase64 = reader.result;
         };
 
-        reader.readAsDataURL(file); // Чтение файла в формате Base64
+        reader.readAsDataURL(file);
       }
     },
   },
@@ -235,14 +219,13 @@ export default {
 </script>
 
 <style scoped>
-/* Стиль для картинки */
 .v-avatar {
-  border-radius: 10px; /* Прямоугольные углы */
+  border-radius: 10px;
   overflow: hidden;
-  background-color: #f0f0f0; /* Цвет фона области */
+  background-color: #f0f0f0;
 }
 
 .v-avatar img {
-  object-fit: cover; /* Чтобы изображение занимало всю область */
+  object-fit: cover;
 }
 </style>
